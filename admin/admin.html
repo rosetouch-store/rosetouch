@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>لوحة الإدارة — Rose Touch</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%232c1b1f'/%3E%3Cpath d='M50 22c10 10 16 17 16 26a16 16 0 1 1-32 0c0-9 6-16 16-26Z' fill='%23e8b4bb'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true" focusable="false"><defs>
+    <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 21v-9"/><path d="M20 7.5l-8 4.5-8-4.5"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><path d="M6 8h12l-1.2 11a2 2 0 0 1-2 1.8H9.2a2 2 0 0 1-2-1.8L6 8z"/><path d="M9 8a3 3 0 0 1 6 0"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.4 7.2 19l.9-5.4-3.9-3.8 5.4-.8z"/></symbol>
+    <symbol id="i-tags" viewBox="0 0 24 24"><path d="M4 10.5V5h5.5L20 15.5 15.5 20 4 10.5z"/><circle cx="8.2" cy="9.2" r="1"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 14l2.5-3 2 2.3L15 10l3 4"/><circle cx="9" cy="9" r="1"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5L9 6a7 7 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1l.5 3h5l.5-3a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5c.1-.3.1-.7.1-1z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19a7 7 0 0 1 14 0"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 5h5v5"/><path d="M10 14 19 5"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4"/><path d="M14 16l4-4-4-4"/><path d="M9 12h9"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 13.2A8.5 8.5 0 1 1 10.8 3a7 7 0 0 0 10.2 10.2z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="m12 6 4 4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14"/><path d="M9 7V5h6v2"/><path d="M8 7l1 12h6l1-12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 3 20h18L12 4z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-money" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M4 18h16"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V6"/><path d="m8 10 4-4 4 4"/><path d="M4 18h16"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0 2.2 5.5"/><path d="M20 4v7h-7"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M8 4v5h7V4"/><rect x="8" y="13" width="8" height="5" rx="1"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.5 4h2l1.2 5-1.7 1a14 14 0 0 0 6 6l1-1.7 5 1.2v2A2.5 2.5 0 0 1 17.5 20 14.5 14.5 0 0 1 4 6.5 2.5 2.5 0 0 1 6.5 4z"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 7l2-3h12l2 3"/><path d="M4 7v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7"/><path d="M9 20v-6h6v6"/><path d="M4 10h16"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></symbol>
+    <symbol id="i-whatsapp" viewBox="0 0 24 24"><path d="M12.04 2a9.9 9.9 0 0 0-8.5 15.07L2 22l5.07-1.49A9.94 9.94 0 1 0 12.04 2zm0 18.1a8.1 8.1 0 0 1-4.13-1.13l-.3-.17-3 .88.9-2.93-.2-.3a8.14 8.14 0 1 1 6.73 3.65zm4.46-6.1c-.24-.12-1.43-.7-1.65-.78-.22-.08-.38-.12-.54.12s-.62.78-.76.94c-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3s-.84.82-.84 2 .86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.1.16 1.52.1.46-.07 1.43-.58 1.63-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z" fill="currentColor" stroke="none"/></symbol>
+  </defs></svg>
+
+  <!-- Login -->
+  <section id="loginScreen" class="login">
+    <div class="login__art">
+      <div class="login__art-inner">
+        <div class="login__logo">
+          <span class="login__mark" aria-hidden="true"><svg viewBox="0 0 64 64" width="40" height="40"><path d="M32 8c9 11 15 19 15 27a15 15 0 1 1-30 0c0-8 6-16 15-27Z" fill="#e8b4bb"/><path d="M32 22c5 6 8 10 8 15a8 8 0 1 1-16 0c0-5 3-9 8-15Z" fill="#fff6ef" opacity=".9"/></svg></span>
+          <span><strong>Rose Touch</strong><span>لوحة إدارة المتجر</span></span>
+        </div>
+        <span class="pill">روز تاتش · إدارة المتجر</span>
+        <h1>إدارة متجرك<br><em>من مكان واحد.</em></h1>
+        <p>المنتجات، الطلبات، التوزيعات، الرسائل، الإعلانات، وإعدادات الموقع — كل شيء تحت السيطرة بتصميم واضح ومريح.</p>
+        <ul class="login__features">
+          <li><svg class="icon"><use href="#i-box"></use></svg> منتجات وأسعار وكميات وصور</li>
+          <li><svg class="icon"><use href="#i-cart"></use></svg> طلبات ورسائل وسلات غير مكتملة</li>
+          <li><svg class="icon"><use href="#i-spark"></use></svg> أشرطة إعلانات ومحتوى الموقع</li>
+          <li><svg class="icon"><use href="#i-database"></use></svg> شحن وتوصيل ونسخ احتياطي ونشر</li>
+        </ul>
+      </div>
+    </div>
+    <div class="login__panel">
+      <form class="login__form" id="loginForm">
+        <span class="pill">دخول آمن</span>
+        <h2>أهلًا بعودتك</h2>
+        <p class="login__sub">أدخل بيانات المدير للمتابعة إلى لوحة التحكم.</p>
+        <label class="field"><span>اسم المستخدم</span><div class="field__box"><svg class="icon"><use href="#i-user"></use></svg><input id="loginUser" type="text" autocomplete="username" placeholder="admin" required></div></label>
+        <label class="field"><span>كلمة المرور</span><div class="field__box"><svg class="icon"><use href="#i-settings"></use></svg><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" required><button type="button" class="field__eye" id="passToggle">إظهار</button></div></label>
+        <p class="form-error" id="loginError" hidden>بيانات الدخول غير صحيحة</p>
+        <button class="btn btn--gold btn--block" type="submit"><svg class="icon"><use href="#i-check"></use></svg> دخول لوحة التحكم</button>
+        <p class="login__back"><a href="../index.html"><svg class="icon"><use href="#i-external"></use></svg> العودة إلى الموقع</a></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- App -->
+  <div id="adminApp" class="app" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__brand">
+        <span class="sidebar__mark"><svg viewBox="0 0 64 64" width="30" height="30"><path d="M32 8c9 11 15 19 15 27a15 15 0 1 1-30 0c0-8 6-16 15-27Z" fill="#e8b4bb"/><path d="M32 22c5 6 8 10 8 15a8 8 0 1 1-16 0c0-5 3-9 8-15Z" fill="#fff6ef" opacity=".9"/></svg></span>
+        <span><strong>Rose Touch</strong><small>لوحة الإدارة</small></span>
+        <button class="icon-btn sidebar__close" id="sidebarClose" type="button" aria-label="إغلاق القائمة"><svg class="icon"><use href="#i-close"></use></svg></button>
+      </div>
+      <nav class="sidebar__nav" id="sidebarNav" aria-label="أقسام لوحة التحكم"></nav>
+      <div class="sidebar__foot">
+        <a href="../index.html" target="_blank" rel="noopener" class="sidebar__link"><svg class="icon"><use href="#i-external"></use></svg> زيارة الموقع</a>
+        <button class="sidebar__link" type="button" id="logoutBtn"><svg class="icon"><use href="#i-logout"></use></svg> تسجيل الخروج</button>
+        <div class="sidebar__user"><span class="avatar" id="userAvatar">A</span><span><b id="userName">admin</b><small>مدير المتجر</small></span></div>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="app__main">
+      <header class="topbar">
+        <button class="icon-btn topbar__menu" id="menuBtn" type="button" aria-label="فتح القائمة"><svg class="icon"><use href="#i-menu"></use></svg></button>
+        <div class="topbar__title"><span class="topbar__crumb" id="pageCrumb">لوحة التحكم</span><h1 id="pageTitle">نظرة عامة</h1></div>
+        <div class="topbar__actions">
+          <span class="save-state" id="saveState" hidden><span class="dot"></span> محفوظ</span>
+          <a class="btn btn--ghost btn--sm" href="../index.html" target="_blank" rel="noopener"><svg class="icon"><use href="#i-external"></use></svg> <span>الموقع</span></a>
+          <button class="btn btn--gold btn--sm" type="button" id="quickSaveBtn"><svg class="icon"><use href="#i-check"></use></svg> <span>حفظ</span></button>
+        </div>
+      </header>
+      <main class="content" id="content"></main>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal></div>
+    <div id="modalCard" class="modal__card">
+      <button class="icon-btn modal__close" type="button" id="modalClose" aria-label="إغلاق"><svg class="icon"><use href="#i-close"></use></svg></button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <script src="../assets/js/store-data.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

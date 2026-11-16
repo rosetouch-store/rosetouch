@@ -1,0 +1,710 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rose Touch — شموع فاخرة مصبوبة يدويًا</title>
+<meta name="description" content="روز تاتش: شموع صويا طبيعية مصبوبة يدويًا بروائح فاخرة، تغليف هدايا أنيق وتوصيل لكل مدن فلسطين من نابلس.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%232c1b1f'/%3E%3Cpath d='M50 22c10 10 16 17 16 26a16 16 0 1 1-32 0c0-9 6-16 16-26Z' fill='%23e8b4bb'/%3E%3Ccircle cx='50' cy='52' r='7' fill='%23fff6ef'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="announcement" id="announcement">
+  <div class="announcement__track">
+    <span id="announcementText">للطلب والاستفسار: 0593979592 · توصيل مجاني للطلبات فوق ٢٥٠ ₪</span>
+    <span aria-hidden="true">✦</span>
+  </div>
+</div>
+
+<header class="site-header" id="siteHeader">
+  <div class="container header__inner">
+    <a aria-label='روز تاتش - الصفحة الرئيسية' class='brand' href='index.html'>
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="42" height="42">
+          <defs>
+            <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#e8b4bb"/><stop offset="1" stop-color="#b4586b"/>
+            </linearGradient>
+          </defs>
+          <path d="M32 8c9 11 15 19 15 27a15 15 0 1 1-30 0c0-8 6-16 15-27Z" fill="url(#brandGrad)"/>
+          <path d="M32 22c5 6 8 10 8 15a8 8 0 1 1-16 0c0-5 3-9 8-15Z" fill="#fff6ef" opacity=".9"/>
+          <path d="M32 44v10" stroke="#c9a227" stroke-width="2" stroke-linecap="round"/>
+          <path d="M27 49h10" stroke="#c9a227" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand__text">
+        <span class="brand__name" id="brandName">Rose Touch</span>
+        <span class="brand__sub">روز تاتش · شموع فاخرة</span>
+      </span>
+    </a>
+
+    <nav class="main-nav" id="mainNav" aria-label="القائمة الرئيسية">
+      <a href="#home" class="is-active">الرئيسية</a>
+      <a href="#products">المتجر</a>
+      <a href="#favors">توزيعات الشموع</a>
+      <a href="#categories">المجموعات</a>
+      <a href="#about">قصتنا</a>
+      <a href="#testimonials">آراء العملاء</a>
+      <a href="#contact">تواصل معنا</a>
+    </nav>
+
+    <div class="header__actions">
+      <button class="icon-btn" id="searchBtn" aria-label="بحث في المتجر">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" id="favBtn" aria-label="المفضلة">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 6.5 4.5 4.5 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z" stroke-linejoin="round"/></svg>
+        <span class="count-badge" id="favCount" hidden>0</span>
+      </button>
+      <button class="icon-btn cart-btn" id="cartBtn" aria-label="سلة التسوق">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 8h12l-1.2 11a2 2 0 0 1-2 1.8H9.2a2 2 0 0 1-2-1.8L6 8Z" stroke-linejoin="round"/><path d="M9 8a3 3 0 0 1 6 0" stroke-linecap="round"/></svg>
+        <span class="count-badge" id="cartCount">0</span>
+      </button>
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="القائمة" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="home">
+
+  <!-- ===== Hero ===== -->
+  <section class="hero">
+    <div class="container hero__inner">
+      <div class="hero__copy">
+        <span class="eyebrow" id="heroBadge">صناعة يدوية · شموع صويا ١٠٠٪</span>
+        <h1>
+          <span id="heroTitle">أضئي لحظاتك</span>
+          <em id="heroAccent">برائحة الورد</em>
+        </h1>
+        <p class="hero__text" id="heroText">شموع فاخرة مصبوبة يدويًا من شمع الصويا الطبيعي وزيوت عطرية مختارة، لتمنح منزلك دفئًا وأناقة تدوم.</p>
+        <div class="hero__cta">
+          <a href="#products" class="btn btn--primary" id="heroCta">تسوّقي الآن
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5m6-6-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a href="#about" class="btn btn--ghost">قصتنا</a>
+        </div>
+        <ul class="hero__trust">
+          <li><span class="dot"></span> شمع صويا طبيعي</li>
+          <li><span class="dot"></span> خالٍ من البارابين</li>
+          <li><span class="dot"></span> تغليف هدايا</li>
+        </ul>
+      </div>
+
+      <div class="hero__visual">
+        <div class="hero__arch">
+          <div class="hero__glow"></div>
+          <div class="hero__img hero__img--main" data-art-product="p1"></div>
+          <div class="hero__img hero__img--side" data-art-product="p7"></div>
+          <div class="hero__img hero__img--small" data-art-product="p13"></div>
+        </div>
+        <div class="float-card float-card--rating">
+          <strong>4.9 ★</strong>
+          <span>أكثر من ٨٤٠ تقييم</span>
+        </div>
+        <div class="float-card float-card--ship">
+          <span class="float-card__icon">✦</span>
+          <div><strong>شحن سريع</strong><span>خلال ٢–٤ أيام</span></div>
+        </div>
+        <div class="hero__seal" aria-hidden="true">
+          <svg viewBox="0 0 120 120" width="118" height="118">
+            <defs><path id="sealPath" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
+            <text font-size="10.5" letter-spacing="2.2" fill="#7d3a49"><textPath href="#sealPath">HAND POURED · SOY WAX · NABLUS ·</textPath></text>
+            <circle cx="60" cy="60" r="30" fill="none" stroke="#c9a227" stroke-opacity=".45"/>
+            <text x="60" y="66" text-anchor="middle" font-family="Georgia,serif" font-size="17" fill="#7d3a49">RT</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== شريط الثقة ===== -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track" id="marqueeTrack">
+      <span>شمع صويا ١٠٠٪</span><i>✦</i>
+      <span>صناعة يدوية بكميات صغيرة</span><i>✦</i>
+      <span>توصيل لكل مدن فلسطين</span><i>✦</i>
+      <span>تغليف هدايا مجاني</span><i>✦</i>
+      <span>خالٍ من السموم</span><i>✦</i>
+      <span>شمع صويا ١٠٠٪</span><i>✦</i>
+      <span>صناعة يدوية بكميات صغيرة</span><i>✦</i>
+      <span>توصيل لكل مدن فلسطين</span><i>✦</i>
+      <span>تغليف هدايا مجاني</span><i>✦</i>
+      <span>خالٍ من السموم</span><i>✦</i>
+    </div>
+  </div>
+
+  <!-- ===== التصنيفات ===== -->
+  <section class="section" id="categories">
+    <div class="container">
+      <div class="section__head reveal">
+        <div>
+          <span class="eyebrow">اختاري ما يناسبك</span>
+          <h2>مجموعاتنا</h2>
+        </div>
+        <a href="#products" class="link-arrow">تصفّحي كل الشموع
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5m6-6-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+      <div class="category-grid" id="categoriesGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== المنتجات ===== -->
+  <section class="section section--products" id="products">
+    <div class="container">
+      <div class="section__head reveal">
+        <div>
+          <span class="eyebrow">مختارات روز تاتش</span>
+          <h2>شموعنا الأكثر طلبًا</h2>
+        </div>
+        <div class="shop-tools">
+          <label class="search-inline">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
+            <input type="search" id="shopSearch" placeholder="ابحثي عن رائحة أو منتج…" aria-label="بحث في المنتجات">
+          </label>
+          <select id="sortSelect" class="select" aria-label="ترتيب المنتجات">
+            <option value="featured">المميزة أولًا</option>
+            <option value="new">الأحدث</option>
+            <option value="price-asc">السعر: الأقل</option>
+            <option value="price-desc">السعر: الأعلى</option>
+            <option value="bestseller">الأكثر مبيعًا</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-row reveal">
+        <div class="chips" id="filterChips"></div>
+        <button class="chip chip--fav" id="favFilterBtn">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 6.5 4.5 4.5 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z" stroke-linejoin="round"/></svg>
+          المفضلة
+        </button>
+      </div>
+
+      <div class="product-grid" id="productGrid"></div>
+      <div class="empty-state" id="productsEmpty" hidden>
+        <div class="empty-state__icon">✦</div>
+        <h3>لا توجد نتائج مطابقة</h3>
+        <p>جرّبي كلمة بحث أخرى أو اختاري مجموعة مختلفة.</p>
+        <button class="btn btn--ghost" id="clearFiltersBtn">إعادة ضبط الفلاتر</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== عرض خاص ===== -->
+  <section class="section offer-section">
+    <div class="container">
+      <div class="offer reveal">
+        <div class="offer__glow" aria-hidden="true"></div>
+        <div class="offer__copy">
+          <span class="eyebrow eyebrow--light">عرض محدود</span>
+          <h2>طقم الهدايا الثلاثي<br><em>بخصم ١٨٪</em></h2>
+          <p>ثلاث شموع صغيرة بروائح الورد والعنبر والفانيلا، داخل علبة هدايا فاخرة مع بطاقة إهداء مجانية.</p>
+          <div class="offer__meta">
+            <div class="countdown" id="countdown">
+              <div><strong id="cdD">02</strong><span>يوم</span></div>
+              <div><strong id="cdH">14</strong><span>ساعة</span></div>
+              <div><strong id="cdM">35</strong><span>دقيقة</span></div>
+              <div><strong id="cdS">00</strong><span>ثانية</span></div>
+            </div>
+            <div class="offer__price">
+              <strong id="offerPrice">320 ₪</strong>
+              <s>390 ₪</s>
+            </div>
+          </div>
+          <button class="btn btn--light" data-add-product="p7">أضيفي الطقم للسلة</button>
+        </div>
+        <div class="offer__visual">
+          <div class="offer__img" data-art-product="p7"></div>
+          <div class="offer__tag">هدية جاهزة</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== قصتنا ===== -->
+  <section class="section" id="about">
+    <div class="container about">
+      <div class="about__visual reveal">
+        <div class="about__img" data-art-product="p2"></div>
+        <div class="about__img about__img--small" data-art-product="p9"></div>
+        <div class="about__badge">
+          <strong>+٥٠٠٠</strong>
+          <span>شمعة صبّتناها بحب</span>
+        </div>
+      </div>
+      <div class="about__copy reveal">
+        <span class="eyebrow">من قلب نابلس</span>
+        <h2 id="aboutTitle">قصة روز تاتش</h2>
+        <p id="aboutText">بدأت روز تاتش من نابلس، من شغف كبير بالروائح وصناعة الشموع. نختار كل زيت عطري بعناية، ونصبّ كل شمعة يدويًا على دفعات صغيرة، لنمنحك قطعة فريدة تحمل أثرًا دافئًا في يومك، ونوصلها لكل مدن فلسطين.</p>
+        <ul class="about__list">
+          <li><span>✦</span> شمع صويا طبيعي ١٠٠٪ وفتائل قطنية.</li>
+          <li><span>✦</span> زيوت عطرية فاخرة وخالية من الفثالات.</li>
+          <li><span>✦</span> تصبّ كل شمعة يدويًا على دفعات محدودة.</li>
+        </ul>
+        <div class="about__stats">
+          <div><strong>+٥٠٠٠</strong><span>شمعة مصبوبة</span></div>
+          <div><strong>+٢٠٠٠</strong><span>عميل سعيد</span></div>
+          <div><strong>4.9★</strong><span>تقييم العملاء</span></div>
+          <div><strong>55</strong><span>ساعة احتراق</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== آراء العملاء ===== -->
+  <section class="section section--soft" id="testimonials">
+    <div class="container">
+      <div class="section__head reveal">
+        <div>
+          <span class="eyebrow">كلمات تسعدنا</span>
+          <h2>ماذا قالت عميلاتنا؟</h2>
+        </div>
+        <div class="slider-nav">
+          <button class="round-btn" id="testPrev" aria-label="السابق">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14 6 6 6-6 6M20 12H4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="round-btn" id="testNext" aria-label="التالي">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m10 6-6 6 6 6M4 12h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="testimonials" id="testimonialTrack">
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>«شمعة الورد الدمشقي غيّرت جوّ غرفتي بالكامل. الرائحة راقية جدًا وثابتة، والتغليف يشبه هدايا المتاجر العالمية.»</p>
+          <div class="testimonial__author"><span>ر</span><div><strong>رهف شاهين</strong><small>نابلس</small></div></div>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>«طلبت طقم الهدايا لصديقتي ووصل قبل الموعد. البطاقة والتغليف أضافوا لمسة شخصية جميلة، وطلبت واحدًا لنفسي.»</p>
+          <div class="testimonial__author"><span>م</span><div><strong>مريم قاسم</strong><small>رام الله</small></div></div>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>«أخيرًا لقيت شمعة صويا ما تسبب لي صداع! رائحة الياسمين هادئة وتدوم لساعات طويلة. تجربة تستحق التكرار.»</p>
+          <div class="testimonial__author"><span>د</span><div><strong>دينا خليل</strong><small>نابلس</small></div></div>
+        </article>
+        <article class="testimonial">
+          <div class="stars">★★★★★</div>
+          <p>«الشمعة النحتية قطعة فنية فوق الطاولة، كل من يزورني يسأل عنها. جودة التصنيع واضحة من أول نظرة.»</p>
+          <div class="testimonial__author"><span>ه</span><div><strong>هبة سليمان</strong><small>طولكرم</small></div></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== الأسئلة ===== -->
+  <section class="section" id="faq">
+    <div class="container faq-wrap">
+      <div class="faq-intro reveal">
+        <span class="eyebrow">نجيبك بكل حب</span>
+        <h2>أسئلة متكررة</h2>
+        <p>لم تجدي إجابتك؟ راسلينا على واتساب وسنرد خلال دقائق.</p>
+        <a class="btn btn--ghost" id="faqWhatsapp" href="#" target="_blank" rel="noopener">تواصلي على واتساب</a>
+      </div>
+      <div class="faq-list" id="faqList">
+        <details class="faq" open>
+          <summary>ما نوع الشمع المستخدم؟<span class="faq__icon"></span></summary>
+          <p>نستخدم شمع الصويا الطبيعي ١٠٠٪ مع فتائل قطنية خالية من الرصاص، مما يجعل الاحتراق أنظف وأبطأ وأكثر أمانًا داخل المنزل.</p>
+        </details>
+        <details class="faq">
+          <summary>كم تدوم الشمعة؟<span class="faq__icon"></span></summary>
+          <p>تدوم شموعنا الكبيرة من ٤٥ إلى ٥٥ ساعة تقريبًا عند اتباع طريقة العناية الصحيحة: قصّ الفتيل إلى ٥ مم قبل كل استخدام، وعدم إطفاء الشمعة قبل ذوبان طبقة كاملة من السطح.</p>
+        </details>
+        <details class="faq">
+          <summary>هل التوصيل متاح لكل المدن؟<span class="faq__icon"></span></summary>
+          <p>نوصل لكل مدن فلسطين خلال ٢–٤ أيام عمل، والتوصيل مجاني للطلبات فوق ٢٥٠ ₪. يمكنك أيضًا اختيار الاستلام من موقعنا في نابلس.</p>
+        </details>
+        <details class="faq">
+          <summary>هل يمكن تغليف الطلب كهدية؟<span class="faq__icon"></span></summary>
+          <p>بالتأكيد! التغليف الهدايا مجاني مع كل طقم، ويمكنك إضافة بطاقة إهداء مكتوبة بخط اليد عبر كتابة النص في ملاحظات الطلب.</p>
+        </details>
+        <details class="faq">
+          <summary>هل الشموع آمنة للاستخدام مع الأطفال والحيوانات؟<span class="faq__icon"></span></summary>
+          <p>شموعنا خالية من البارابين والفثالات، لكننا ننصح دائمًا بإبعاد أي شمعة مشتعلة عن متناول الأطفال والحيوانات، وعدم تركها دون مراقبة.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== توزيعات الشموع ===== -->
+  <section class="section section--soft" id="favors">
+    <div class="container">
+      <div class="section__head reveal">
+        <div>
+          <span class="eyebrow">لمناسباتك الخاصة</span>
+          <h2>توزيعات الشموع</h2>
+          <p>اختاري كل التفاصيل بنفسك: الحجم، الرائحة، اللون والتغليف — والحد الأدنى للطلب ٢٠ قطعة فقط.</p>
+        </div>
+        <a href="#favorForm" class="link-arrow">ابدئي طلبك الآن
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5m6-6-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+
+      <div class="favors">
+        <aside class="favors__aside reveal">
+          <span class="eyebrow">كيف تعمل؟</span>
+          <h3>توزيعات على ذوقك</h3>
+          <p>توزيعات شموع صويا مصبوبة يدويًا لعروسك أو مناسبتك. تختارين كل شيء، ونحن نجهّز الطلب ونثبّت السعر النهائي معك هاتفيًا.</p>
+          <ul class="favors__facts">
+            <li><span>١</span><div><strong>اختاري التفاصيل</strong><small>المقاس، الرائحة، اللون والتغليف</small></div></li>
+            <li><span>٢</span><div><strong>شاهدي التقدير</strong><small>سعر تقديري يتحدّث فورًا مع كل خيار</small></div></li>
+            <li><span>٣</span><div><strong>نؤكد معك</strong><small>نتواصل معك هاتفيًا لتثبيت الطلب والتوصيل</small></div></li>
+          </ul>
+          <div class="favors__note">
+            <strong>الحد الأدنى ٢٠ قطعة</strong>
+            <span>نوصّل لكل مدن فلسطين، ويُفضّل الطلب قبل المناسبة بأسبوعين على الأقل.</span>
+          </div>
+          <a class="favors__call" id="favorCall" href="tel:+972593979592" dir="ltr">+972 59 397 9592</a>
+        </aside>
+
+        <form class="favors__form reveal" id="favorForm" novalidate>
+          <div class="field-row">
+            <label class="field">
+              <span>الاسم</span>
+              <input type="text" name="name" placeholder="اسمك الكريم" required>
+            </label>
+            <label class="field">
+              <span>رقم الهاتف</span>
+              <input type="tel" name="phone" placeholder="059 000 0000" inputmode="tel" required>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>المناسبة</span>
+              <select name="event" id="favorEvent"></select>
+            </label>
+            <label class="field">
+              <span>الكمية <small>(الحد الأدنى ٢٠)</small></span>
+              <input type="number" name="quantity" id="favorQty" min="20" step="1" value="20" inputmode="numeric" required>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>الحجم</span>
+              <select name="size" id="favorSize"></select>
+            </label>
+            <label class="field">
+              <span>التغليف</span>
+              <select name="packaging" id="favorPackaging"></select>
+            </label>
+          </div>
+
+          <div class="field field--full">
+            <span>اللون</span>
+            <div class="opt-row" id="favorColors" role="radiogroup" aria-label="لون التوزيعة"></div>
+          </div>
+
+          <div class="field field--full">
+            <span>الرائحة <small>(يمكن اختيار أكثر من واحدة)</small></span>
+            <div class="opt-row" id="favorScents" role="group" aria-label="رائحة التوزيعة"></div>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>نص البطاقة <small>(اختياري)</small></span>
+              <input type="text" name="labelText" id="favorLabel" placeholder="مثال: ليان &amp; أحمد" maxlength="40">
+            </label>
+            <label class="field">
+              <span>المدينة</span>
+              <input type="text" name="city" placeholder="نابلس" value="نابلس">
+            </label>
+          </div>
+
+          <label class="field">
+            <span>تاريخ المناسبة <small>(اختياري)</small></span>
+            <input type="date" name="neededBy" id="favorDate">
+          </label>
+
+          <label class="field">
+            <span>ملاحظات إضافية</span>
+            <textarea name="notes" rows="3" placeholder="أي تفاصيل تحبين إضافتها عن التوزيعة أو التسليم"></textarea>
+          </label>
+
+          <div class="favor-estimate" id="favorEstimate">
+            <div class="favor-estimate__row">
+              <span>الكمية</span>
+              <strong id="favorQtyOut">٢٠ قطعة</strong>
+            </div>
+            <div class="favor-estimate__row favor-estimate__row--total">
+              <span>السعر التقديري</span>
+              <strong id="favorTotalOut">—</strong>
+            </div>
+            <p>سعر تقديري مبدئي، ويُثبَّت السعر النهائي بعد التواصل معك.</p>
+          </div>
+
+          <button class="btn btn--primary btn--full" type="submit">إرسال طلب التوزيعات</button>
+          <p class="form-note">سنعاود الاتصال بك خلال ساعات العمل لتأكيد التفاصيل.</p>
+
+          <div class="favor-success" id="favorSuccess" hidden aria-live="polite">
+            <strong id="favorSuccessTitle">تم استلام طلبك 🌹</strong>
+            <p id="favorSuccessText">—</p>
+            <div class="favor-success__actions">
+              <a class="btn btn--primary" id="favorWhatsapp" href="#" target="_blank" rel="noopener">أكملي عبر واتساب</a>
+              <button class="btn btn--ghost" type="button" id="favorNew">طلب جديد</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== اطلبي هاتفيًا ===== -->
+  <section class="newsletter">
+    <div class="container newsletter__inner reveal">
+      <div>
+        <span class="eyebrow eyebrow--light">اطلبي بسهولة</span>
+        <h2>اطلبي عبر الهاتف أو واتساب</h2>
+        <p>خصم ١٠٪ على أول طلب هاتفي · اتصلي بنا أو راسلينا على واتساب لإتمام طلبك وتحديد موعد التوصيل داخل فلسطين.</p>
+      </div>
+      <div class="newsletter__form">
+        <a class="btn btn--light" href="tel:+972593979592" dir="ltr">+972 59 397 9592</a>
+        <a class="btn btn--ghost" href="https://wa.me/972593979592" target="_blank" rel="noopener">واتساب</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== تواصل ===== -->
+  <section class="section" id="contact">
+    <div class="container contact">
+      <div class="contact__info reveal">
+        <span class="eyebrow">نسعد بسماعك</span>
+        <h2>تواصلي معنا</h2>
+        <p>سؤال عن منتج، طلب خاص، أو تعاون؟ فريق روز تاتش جاهز لمساعدتك.</p>
+        <ul class="contact__list">
+          <li>
+            <span class="contact__ico">☎</span>
+            <div><small>الهاتف</small><strong><a id="contactPhone" href="tel:+972593979592" dir="ltr">+972593979592</a></strong></div>
+          </li>
+          <li>
+            <span class="contact__ico">✆</span>
+            <div><small>واتساب</small><strong><a id="contactWhatsapp" href="https://wa.me/972593979592" target="_blank" rel="noopener" dir="ltr">+972593979592</a></strong></div>
+          </li>
+          <li>
+            <span class="contact__ico">⌖</span>
+            <div><small>الموقع</small><strong id="contactAddress">فلسطين، نابلس</strong></div>
+          </li>
+          <li>
+            <span class="contact__ico">◷</span>
+            <div><small>أوقات العمل</small><strong id="contactHours">السبت – الخميس · 10 صباحًا – 8 مساءً</strong></div>
+          </li>
+        </ul>
+        <div class="contact__social">
+          <a href="#" target="_blank" rel="noopener" id="instagramLink" aria-label="إنستغرام">إنستغرام</a>
+          <a href="#" target="_blank" rel="noopener" id="whatsappLink" aria-label="واتساب">واتساب</a>
+          <a href="#" target="_blank" rel="noopener" aria-label="تيك توك">تيك توك</a>
+        </div>
+      </div>
+      <form class="contact__form reveal" id="contactForm" novalidate>
+        <div class="field-row">
+          <label class="field">
+            <span>الاسم</span>
+            <input type="text" name="name" placeholder="اسمك الكريم" required>
+          </label>
+          <label class="field">
+            <span>رقم الهاتف</span>
+            <input type="tel" name="phone" placeholder="059 000 0000" inputmode="tel" required>
+          </label>
+        </div>
+        <label class="field">
+          <span>رسالتك</span>
+          <textarea name="message" rows="5" placeholder="كيف يمكننا مساعدتك؟" required></textarea>
+        </label>
+        <button class="btn btn--primary" type="submit">إرسال الرسالة</button>
+        <p class="form-note">نرد عادةً خلال ساعات العمل في أقل من ٢٤ ساعة.</p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer__grid">
+    <div class="footer__brand">
+      <a class='brand brand--footer' href='index.html'>
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="40" height="40"><path d="M32 8c9 11 15 19 15 27a15 15 0 1 1-30 0c0-8 6-16 15-27Z" fill="#e8b4bb"/><path d="M32 22c5 6 8 10 8 15a8 8 0 1 1-16 0c0-5 3-9 8-15Z" fill="#2c1b1f" opacity=".85"/></svg>
+        </span>
+        <span class="brand__text"><span class="brand__name">Rose Touch</span><span class="brand__sub">روز تاتش · شموع فاخرة</span></span>
+      </a>
+      <p>شموع صويا مصبوبة يدويًا بروائح تروي قصصًا. من نابلس إلى منزلك، بكل حب.</p>
+      <div class="footer__pay"><span>الدفع عند الاستلام</span><span>تحويل بنكي</span><span>Visa</span><span>Mastercard</span></div>
+    </div>
+    <div class="footer__col">
+      <h4>المتجر</h4>
+      <a href="#products">كل الشموع</a>
+      <a href="#favors">توزيعات الشموع</a>
+      <a href="#categories">شموع معطّرة</a>
+      <a href="#categories">مجموعات هدايا</a>
+      <a href="#products">العروض</a>
+    </div>
+    <div class="footer__col">
+      <h4>المساعدة</h4>
+      <a href="#faq">الأسئلة الشائعة</a>
+      <a href="#contact">الشحن والتوصيل</a>
+      <a href="#contact">الاستبدال والإرجاع</a>
+      <a href="#contact">تواصل معنا</a>
+    </div>
+    <div class="footer__col">
+      <h4>عن روز تاتش</h4>
+      <a href="#about">قصتنا</a>
+      <a href="#testimonials">آراء العملاء</a>
+      <a href='admin/admin.html'>لوحة التحكم</a>
+      <a href="#contact">الوظائف</a>
+    </div>
+  </div>
+  <div class="container footer__bottom">
+    <span>© <span id="year">2026</span> Rose Touch — جميع الحقوق محفوظة.</span>
+    <span>صنع بحب بواسطة <a href='https://wa.me/972593979592' target='_blank' rel='noopener' style='color:inherit;text-decoration:underline'>rahaf</a></span>
+  </div>
+</footer>
+
+<!-- ===== سلة التسوق ===== -->
+<aside class="drawer" id="cartDrawer" aria-hidden="true" aria-label="سلة التسوق">
+  <div class="drawer__head">
+    <h3>سلة التسوق <span id="drawerCount">(0)</span></h3>
+    <button class="icon-btn" data-close-drawer aria-label="إغلاق">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="ship-progress" id="shipProgress">
+    <p id="shipText">أضيفي 250 ₪ للحصول على شحن مجاني</p>
+    <div class="ship-progress__bar"><span id="shipBar"></span></div>
+  </div>
+  <div class="drawer__body" id="cartItems"></div>
+  <div class="drawer__empty" id="cartEmpty">
+    <div class="drawer__empty-icon">✦</div>
+    <h4>سلتك فارغة</h4>
+    <p>اكتشفي شموعنا واختاري ما يناسب لحظاتك.</p>
+    <button class="btn btn--primary" data-close-drawer>ابدئي التسوق</button>
+  </div>
+  <div class="drawer__foot" id="cartFoot">
+    <div class="cart-line"><span>المجموع الفرعي</span><strong id="cartSubtotal">0 ₪</strong></div>
+    <div class="cart-line"><span>الشحن</span><strong id="cartShipping">—</strong></div>
+    <div class="cart-line cart-line--total"><span>الإجمالي</span><strong id="cartTotal">0 ₪</strong></div>
+    <button class="btn btn--primary btn--full" id="checkoutBtn">إتمام الطلب</button>
+    <button class="btn btn--text" data-close-drawer>متابعة التسوق</button>
+    <p class="cart-note">الدفع عند الاستلام · إمكانية تغليف الهدايا</p>
+  </div>
+</aside>
+
+<!-- ===== إتمام الطلب ===== -->
+<div class="modal" id="checkoutModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="إتمام الطلب">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--wide">
+    <div class="modal__head">
+      <div>
+        <span class="eyebrow">خطوة أخيرة</span>
+        <h3>إتمام الطلب</h3>
+      </div>
+      <button class="icon-btn" data-close-modal aria-label="إغلاق">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <form id="checkoutForm" class="checkout" novalidate>
+      <div class="checkout__fields">
+        <div class="field-row">
+          <label class="field"><span>الاسم الكامل *</span><input name="name" required placeholder="الاسم الأول والأخير"></label>
+          <label class="field"><span>رقم الجوال *</span><input name="phone" required inputmode="tel" placeholder="059 000 0000"></label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>منطقة التوصيل *</span><select name="deliveryArea" id="deliveryAreaSelect" required></select></label>
+          <label class="field" id="deliveryCityWrap"><span>المدينة / المنطقة (تفصيل)</span><input name="city" id="deliveryCityInput" placeholder="اكتب اسم المنطقة"></label>
+        </div>
+        <p class="form-note" id="deliveryFeeHint" style="margin-top:-4px;margin-bottom:10px">اختر منطقة التوصيل لحساب رسوم الشحن تلقائيًا.</p>
+        <label class="field"><span>العنوان التفصيلي *</span><input name="address" required placeholder="الحي، الشارع، رقم المبنى"></label>
+        <label class="field"><span>ملاحظات الطلب</span><textarea name="notes" rows="2" placeholder="نص بطاقة الإهداء أو أي تعليمات"></textarea></label>
+        <div class="field">
+          <span>طريقة الدفع</span>
+          <div class="pay-options">
+            <label class="pay-option is-active"><input type="radio" name="payment" value="الدفع عند الاستلام" checked> الدفع عند الاستلام</label>
+            <label class="pay-option"><input type="radio" name="payment" value="تحويل بنكي"> تحويل بنكي</label>
+          </div>
+        </div>
+      </div>
+      <aside class="checkout__summary">
+        <h4>ملخص الطلب</h4>
+        <div id="checkoutItems" class="checkout__items"></div>
+        <div class="cart-line"><span>المجموع الفرعي</span><strong id="coSubtotal">0 ₪</strong></div>
+        <div class="cart-line"><span>الشحن</span><strong id="coShipping">—</strong></div>
+        <div class="cart-line cart-line--total"><span>الإجمالي</span><strong id="coTotal">0 ₪</strong></div>
+        <p class="cart-note" id="loyaltyEarnHint" hidden></p>
+        <button class="btn btn--primary btn--full" type="submit" id="placeOrderBtn">تأكيد الطلب</button>
+        <p class="cart-note">بالضغط على تأكيد الطلب أنت توافقين على سياسة الشحن والاستبدال.</p>
+      </aside>
+    </form>
+  </div>
+</div>
+
+<!-- ===== نجاح الطلب ===== -->
+<div class="modal" id="successModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="تم تأكيد الطلب">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--center">
+    <div class="success">
+      <div class="success__icon">✦</div>
+      <h3>شكرًا لك! تم استلام طلبك</h3>
+      <p>رقم طلبك <strong id="successOrderNumber">RT-1001</strong></p>
+      <p class="success__note">أرسلي تفاصيل الطلب عبر واتساب لتأكيده بسرعة. سنراجع الطلب ونتواصل معك لتأكيد العنوان وموعد التوصيل.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <a class="btn btn--primary" id="successWhatsapp" href="#" target="_blank" rel="noopener">إرسال الطلب عبر واتساب</a>
+        <button class="btn btn--ghost" data-close-modal>متابعة التسوق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== المنتج ===== -->
+<div class="modal" id="productModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="تفاصيل المنتج">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--product">
+    <button class="icon-btn modal__close" data-close-modal aria-label="إغلاق">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+    </button>
+    <div class="product-detail" id="productDetail"></div>
+  </div>
+</div>
+
+<!-- ===== المفضلة ===== -->
+<div class="modal" id="favModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="المفضلة">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel">
+    <div class="modal__head">
+      <h3>المفضلة</h3>
+      <button class="icon-btn" data-close-modal aria-label="إغلاق">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="fav-list" id="favItems"></div>
+  </div>
+</div>
+
+<!-- ===== البحث ===== -->
+<div class="search-overlay" id="searchOverlay" aria-hidden="true">
+  <div class="search-overlay__box">
+    <div class="search-overlay__head">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
+      <input type="search" id="searchField" placeholder="ابحثي عن شمعة، رائحة، أو مجموعة…" aria-label="بحث">
+      <button class="icon-btn" data-close-search aria-label="إغلاق البحث">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="search-overlay__results" id="searchResults">
+      <p class="search-hint">جرّبي: ورد، عنبر، فانيلا، هدايا…</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/js/store-data.js"></script>
+<script src="assets/js/store.js"></script>
+</body>
+</html>
+
