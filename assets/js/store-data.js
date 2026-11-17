@@ -448,7 +448,7 @@
         adminPassword: 'admin123',
         sheetsApiUrl: 'https://script.google.com/macros/s/AKfycbzj25Y35cBvMD5xPppM45VY9ephLWpxnh8LjvV3CGAR6cdaBcv8QQiJTo7rthrwMnQvEw/exec',
         sheetsSheetUrl: '',
-        loyalty: { enabled: true, pointsRate: 10, pointValue: 0.1 },
+        loyalty: { enabled: true, pointsRate: 10, pointValue: 0.1, hiddenPhones: [] },
         deliveryAreas: [
           { name: 'نابلس', fee: 25, enabled: true, note: '' },
           { name: 'رام الله', fee: 30, enabled: true, note: '' },
@@ -984,43 +984,106 @@
     if (p >= 25) return 'فضي';
     return 'برونزي';
   }
-  function syncLoyaltyMembers() {
+  function loyaltyHiddenPhones() {
+    const s = settings();
+    const list = (s && s.loyalty && Array.isArray(s.loyalty.hiddenPhones)) ? s.loyalty.hiddenPhones : [];
+    return list.map(p => String(p || '').replace(/\D/g, '')).filter(Boolean);
+  }
+  function loyaltySetHidden(phone, hidden) {
+    const s = settings();
+    if (!s.loyalty || typeof s.loyalty !== 'object') s.loyalty = {};
+    const digits = String(phone || '').replace(/\D/g, '');
+    if (!digits) return [];
+    const list = loyaltyHiddenPhones().filter(p => p !== digits);
+    if (hidden) list.push(digits);
+    s.loyalty.hiddenPhones = list;
+    commit();
+    return syncLoyaltyMembers();
+  }
+  function deleteLoyaltyMember(phone) { return loyaltySetHidden(phone, true); }
+  function restoreLoyaltyMember(phone) { return loyaltySetHidden(phone, false); }
+
+  function loyaltyOverrides() {
+    const s = settings();
+    if (!s.loyalty || typeof s.loyalty !== 'object') s.loyalty = {};
+    if (!s.loyalty.overrides || typeof s.loyalty.overrides !== 'object') s.loyalty.overrides = {};
+    return s.loyalty.overrides;
+  }
+  function setLoyaltyPoints(phone, points) {
+    const digits = String(phone || '').replace(/\D/g, '');
+    if (!digits) return [];
+    const ov = loyaltyOverrides();
+    if (points === null || points === undefined || points === '') delete ov[digits];
+    else ov[digits] = Math.max(0, Math.floor(Number(points) || 0));
+    commit();
+    return computeLoyaltyMembers();
+  }
+
+  /* يحسب نقاط الولاء من طلبات المتجر المحلية + أي طلبات إضافية (مثل طلبات Google Sheets) */
+  function computeLoyaltyMembers(extraOrders) {
     const d = db();
     const s = settings();
     const rate = Math.max(1, Number(s.loyalty && s.loyalty.pointsRate) || 10); // each X ₪ = 1 point
-    const byPhone = {};
-    (d.orders || []).forEach(o => {
-      if (o.status === 'cancelled') return;
-      const phone = String((o.customer && o.customer.phone) || '').replace(/\D/g, '');
-      if (!phone) return;
-      const name = (o.customer && o.customer.name) || 'عميل';
-      const total = Number(o.total) || 0;
-      if (!byPhone[phone]) byPhone[phone] = { name, phone, points: 0, orders: 0, spent: 0, updatedAt: o.createdAt || todayISO() };
-      byPhone[phone].orders += 1;
-      byPhone[phone].spent += total;
-      byPhone[phone].points += Math.floor(total / rate);
-      if (o.createdAt) byPhone[phone].updatedAt = o.createdAt;
-      if (name && byPhone[phone].name === 'عميل') byPhone[phone].name = name;
-    });
-    // merge with existing manual members (keep manual extras/overrides by phone)
+    const hidden = loyaltyHiddenPhones();
+    const overrides = (s.loyalty && s.loyalty.overrides) || {};
     const existing = Array.isArray(d.loyaltyMembers) ? d.loyaltyMembers : [];
-    const merged = Object.keys(byPhone).map(phone => {
-      const base = byPhone[phone];
-      const prev = existing.find(m => String(m.phone || '').replace(/\D/g, '') === phone);
-      const points = prev && prev.manualPoints != null ? Number(prev.manualPoints) : base.points;
-      return Object.assign({}, prev || {}, base, { points, manualPoints: prev ? prev.manualPoints : undefined, level: loyaltyLevel(points) });
-    });
-    // keep manual-only members not in orders
-    existing.forEach(m => {
+    const byPhone = {};
+    const seen = {};
+
+    function addOrders(list) {
+      (list || []).forEach(function (o) {
+        if (!o) return;
+        const status = String(o.status || '').trim();
+        if (status === 'cancelled' || status === 'ملغي') return;
+        const phone = String((o.customer && o.customer.phone) || o.phone || '').replace(/\D/g, '');
+        if (!phone || hidden.indexOf(phone) >= 0) return;
+        // منع احتساب نفس الطلب مرتين (محلي + Google Sheets)
+        const key = String(o.number || o.id || (String(o.createdAt || '') + '|' + phone)).trim();
+        if (key && seen[key]) return;
+        if (key) seen[key] = true;
+        const name = (o.customer && o.customer.name) || o.name || 'عميل';
+        const total = Number(o.total) || 0;
+        if (!byPhone[phone]) byPhone[phone] = { name: name, phone: phone, points: 0, orders: 0, spent: 0, updatedAt: o.createdAt || todayISO() };
+        const m = byPhone[phone];
+        m.orders += 1;
+        m.spent += total;
+        m.points += Math.floor(total / rate);
+        if (o.createdAt && String(o.createdAt) > String(m.updatedAt)) {
+          m.updatedAt = o.createdAt;
+          if (name) m.name = name;
+        } else if (name && m.name === 'عميل') {
+          m.name = name;
+        }
+      });
+    }
+    addOrders(d.orders);
+    addOrders(extraOrders);
+
+    // أعضاء مضافون يدويًا (بدون طلبات) — نحتفظ بهم
+    existing.forEach(function (m) {
       const phone = String(m.phone || '').replace(/\D/g, '');
-      if (phone && !merged.find(x => String(x.phone || '').replace(/\D/g, '') === phone)) {
-        const points = Number(m.points) || 0;
-        merged.push(Object.assign({}, m, { level: loyaltyLevel(points) }));
-      }
+      if (!phone || hidden.indexOf(phone) >= 0 || byPhone[phone]) return;
+      if (!(Number(m.orders) > 0) && !(Number(m.points) > 0)) return;
+      byPhone[phone] = { name: m.name || 'عميل', phone: phone, points: Number(m.points) || 0, orders: Number(m.orders) || 0, spent: Number(m.spent) || 0, updatedAt: m.updatedAt || todayISO() };
     });
-    merged.sort((a,b)=> (Number(b.points)||0) - (Number(a.points)||0));
-    d.loyaltyMembers = merged;
-    return merged;
+
+    const list = Object.keys(byPhone).map(function (phone) {
+      const m = byPhone[phone];
+      const prev = existing.find(function (x) { return String(x.phone || '').replace(/\D/g, '') === phone; });
+      if (overrides[phone] != null) m.points = Number(overrides[phone]) || 0;
+      else if (prev && prev.manualPoints != null) m.points = Number(prev.manualPoints) || 0;
+      m.manual = overrides[phone] != null;
+      m.level = loyaltyLevel(m.points);
+      return m;
+    });
+    list.sort(function (a, b) { return (Number(b.points) || 0) - (Number(a.points) || 0); });
+    return list;
+  }
+
+  function syncLoyaltyMembers(extraOrders) {
+    const d = db();
+    d.loyaltyMembers = computeLoyaltyMembers(extraOrders);
+    return d.loyaltyMembers;
   }
 
   /* ---------- مزامنة الطلبات والرسائل (Google Sheets) ---------- */
@@ -1152,7 +1215,8 @@
     activeCart, cartTotals, addToCart, setCartQty, removeFromCart, clearCart, saveCheckoutContact, placeOrder,
     favorites, toggleFavorite, contactMessage, detectDevice, detectSource,
     deliveryAreas, selectedDeliveryAreaName, resolveDeliveryFee,
-    loyaltyLevel, syncLoyaltyMembers,
+    loyaltyLevel, syncLoyaltyMembers, loyaltyHiddenPhones, deleteLoyaltyMember, restoreLoyaltyMember,
+    computeLoyaltyMembers, setLoyaltyPoints, loyaltyOverrides,
     sheetsApiUrl, pushRemote, fetchRemote, orderText, orderRemotePayload, messageText, whatsappUrl
   };
 })(window);
