@@ -210,11 +210,108 @@
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
 
+  /* ---------- صور وخيارات المنتجات ---------- */
+  function productImages(product) {
+    if (!product) return [];
+    const list = Array.isArray(product.images) ? product.images.filter(Boolean).slice() : [];
+    if (!list.length && product.image) list.push(product.image);
+    return list;
+  }
   function productImage(product) {
     if (!product) return candleArt('rose', 'fallback');
-    if (product.image && /^(https?:|data:image)/.test(product.image)) return product.image;
+    const imgs = productImages(product);
+    for (let i = 0; i < imgs.length; i++) {
+      if (imgs[i] && /^(https?:|data:image)/.test(imgs[i])) return imgs[i];
+    }
     return candleArt(product.palette, product.id || product.name);
   }
+
+  function defaultProductScents() {
+    return FAVOR_SCENTS.map(function (label, i) { return { id: 's' + (i + 1), label: label, hidden: false }; });
+  }
+  function defaultProductColors() {
+    return FAVOR_COLORS.map(function (c) { return { id: c.id, label: c.label, hex: c.hex || '', hidden: false }; });
+  }
+  function productScents() {
+    const s = settings();
+    if (!Array.isArray(s.productScents) || !s.productScents.length) s.productScents = defaultProductScents();
+    return s.productScents;
+  }
+  function productColors() {
+    const s = settings();
+    if (!Array.isArray(s.productColors) || !s.productColors.length) s.productColors = defaultProductColors();
+    return s.productColors;
+  }
+  function optionLabel(kind, id) {
+    const list = kind === 'color' ? productColors() : productScents();
+    const o = list.find(function (x) { return String(x.id) === String(id); });
+    return o ? o.label : '';
+  }
+  function productScentOptions(product) {
+    if (!product) return [];
+    let allowed = product.scentOptions;
+    if (!Array.isArray(allowed)) {
+      const match = productScents().find(function (o) { return product.scent && String(product.scent).indexOf(o.label) >= 0; });
+      allowed = match ? [match.id] : [];
+    }
+    return productScents().filter(function (o) { return !o.hidden && allowed.indexOf(o.id) >= 0; });
+  }
+  function productColorOptions(product) {
+    if (!product) return [];
+    const allowed = Array.isArray(product.colorOptions) ? product.colorOptions : [];
+    return productColors().filter(function (o) { return !o.hidden && allowed.indexOf(o.id) >= 0; });
+  }
+  function productHasOptions(product) {
+    return productScentOptions(product).length > 0 || productColorOptions(product).length > 0;
+  }
+  function choicesText(item) {
+    const o = (item && item.options) || {};
+    const scent = o.scent || (item && item.scent) || '';
+    const color = o.color || (item && item.color) || '';
+    const parts = [];
+    if (scent) parts.push('رائحة: ' + (optionLabel('scent', scent) || scent));
+    if (color) parts.push('لون: ' + (optionLabel('color', color) || color));
+    return parts.join('، ');
+  }
+
+  // تحديث المنتجات القديمة المخزّنة محليًا بالحقول الجديدة بدون فقد بياناتها
+  function normalizeProduct(p, scentList, colorList) {
+    if (!p || typeof p !== 'object') return p;
+    scentList = scentList || defaultProductScents();
+    colorList = colorList || defaultProductColors();
+    p.images = (Array.isArray(p.images) ? p.images : []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim());
+    if (!p.images.length && typeof p.image === 'string' && p.image.trim()) p.images = [p.image.trim()];
+    if ((!p.image || typeof p.image !== 'string') && p.images.length) p.image = p.images[0];
+    if (!Array.isArray(p.scentOptions)) {
+      const text = String(p.scent || '');
+      p.scentOptions = scentList.filter(function (o) { return o && o.label && text.indexOf(o.label) >= 0; }).map(function (o) { return o.id; });
+    }
+    if (!Array.isArray(p.colorOptions)) {
+      const byPalette = { rose: 'rose', ivory: 'ivory', amber: 'amber', gold: 'gold', sage: 'sage', lavender: 'lavender' };
+      const guess = byPalette[p.palette] || '';
+      p.colorOptions = guess && colorList.some(function (o) { return String(o.id) === guess; }) ? [guess] : [];
+    }
+    if (typeof p.hidden !== 'boolean') p.hidden = false;
+    if (p.active == null) p.active = true;
+    return p;
+  }
+
+  // إظهار/إخفاء موحّد لكل عناصر المتجر (منتجات، تصنيفات، عروض، آراء)
+  function isVisible(item) { return !!item && item.hidden !== true && item.active !== false; }
+  function visibleCategories() { return db().categories.filter(isVisible); }
+  function visibleProducts(categoryId) {
+    return db().products.filter(function (p) {
+      if (!isVisible(p)) return false;
+      return !categoryId || categoryId === 'all' || p.category === categoryId;
+    });
+  }
+
+  // مفتاح سطر السلة: نفس المنتج + نفس الرائحة + نفس اللون = سطر واحد
+  function optionKey(choices) {
+    const o = choices || {};
+    return [o.scent ? 's:' + o.scent : '', o.color ? 'c:' + o.color : ''].filter(Boolean).join('|');
+  }
+  function cartLineKey(line) { return String((line && line.productId) || '') + '#' + optionKey(line && line.options); }
 
   /* ---------- البيانات الافتراضية ---------- */
   function seed() {
@@ -228,7 +325,8 @@
     const P = (id, name, en, category, price, compareAt, stock, palette, scent, notes, desc, flags) => Object.assign({
       id, name, en, category, price, compareAt: compareAt || 0, stock, palette,
       scent, notes, desc, sku: 'RT-' + id.replace('p', ''),
-      weight: '220 جم', burnTime: '45–55 ساعة', image: '', active: true,
+      weight: '220 جم', burnTime: '45–55 ساعة', image: '', images: [],
+      scentOptions: [], colorOptions: [], hidden: false, active: true,
       featured: false, bestseller: false, createdAt: todayISO(-40)
     }, flags || {});
 
@@ -237,17 +335,17 @@
         'ورد دمشقي، عنبر، مسك أبيض',
         ['ورد', 'عنبر', 'مسك'],
         'شمعة صويا مصبوبة يدويًا برائحة الورد الدمشقي الأصيل، تملأ الغرفة بدفء ناعم يدوم لساعات.',
-        { featured: true, bestseller: true }),
+        { featured: true, bestseller: true, scentOptions: ['s1', 's4', 's5'], colorOptions: ['rose', 'ivory', 'gold'] }),
       P('p2', 'شمعة العنبر الذهبي', 'Amber Noir', 'c1', 165, 0, 16, 'amber',
         'عنبر، بخور، أخشاب دافئة',
         ['عنبر', 'بخور', 'خشب'],
         'مزيج شرقي غامق من العنبر والبخور، مثالي لأمسيات الشتاء والإضاءة الخافتة.',
-        { featured: true }),
+        { featured: true, scentOptions: ['s4', 's6'], colorOptions: ['amber', 'gold'] }),
       P('p3', 'شمعة الفانيلا واللوز', 'Vanilla Almond', 'c1', 120, 0, 38, 'ivory',
         'فانيلا بوربون، لوز محمص، كراميل',
         ['فانيلا', 'لوز', 'كراميل'],
         'حلوى دافئة في كوب زجاجي: فانيلا كريمية مع لمسة لوز محمّص.',
-        { bestseller: true }),
+        { bestseller: true, scentOptions: ['s5', 's6'], colorOptions: ['ivory', 'rose'] }),
       P('p4', 'شمعة الياسمين الليلي', 'Night Jasmine', 'c1', 135, 0, 9, 'sage',
         'ياسمين، أوراق خضراء، مسك',
         ['ياسمين', 'أخضر', 'مسك'],
@@ -449,6 +547,8 @@
         sheetsApiUrl: 'https://script.google.com/macros/s/AKfycbzj25Y35cBvMD5xPppM45VY9ephLWpxnh8LjvV3CGAR6cdaBcv8QQiJTo7rthrwMnQvEw/exec',
         sheetsSheetUrl: '',
         loyalty: { enabled: true, pointsRate: 10, pointValue: 0.1, hiddenPhones: [] },
+        productScents: defaultProductScents(),
+        productColors: defaultProductColors(),
         deliveryAreas: [
           { name: 'نابلس', fee: 25, enabled: true, note: '' },
           { name: 'رام الله', fee: 30, enabled: true, note: '' },
@@ -491,9 +591,12 @@
     if (!db.settings.loyalty || typeof db.settings.loyalty !== 'object') db.settings.loyalty = Object.assign({}, fresh.settings.loyalty);
     db.settings.loyalty = Object.assign({}, fresh.settings.loyalty, db.settings.loyalty);
     if (!Array.isArray(db.settings.deliveryAreas) || !db.settings.deliveryAreas.length) db.settings.deliveryAreas = fresh.settings.deliveryAreas.slice();
+    if (!Array.isArray(db.settings.productScents) || !db.settings.productScents.length) db.settings.productScents = fresh.settings.productScents.slice();
+    if (!Array.isArray(db.settings.productColors) || !db.settings.productColors.length) db.settings.productColors = fresh.settings.productColors.slice();
     ['categories', 'products', 'orders', 'carts', 'visitors', 'messages', 'favors', 'events', 'loyaltyMembers'].forEach(k => {
       if (!Array.isArray(db[k])) db[k] = (Array.isArray(fresh[k]) ? fresh[k].slice() : []);
     });
+    db.products.forEach(p => normalizeProduct(p, db.settings.productScents, db.settings.productColors));
     return db;
   }
 
@@ -802,47 +905,66 @@
     return { count: items.reduce((s, i) => s + (Number(i.qty) || 0), 0), subtotal, shipping: ship, total: subtotal + ship };
   }
 
-  function addToCart(productId, qty) {
+  function selectedChoices(product, choices) {
+    const raw = choices || {};
+    const scentIds = productScentOptions(product).map(o => String(o.id));
+    const colorIds = productColorOptions(product).map(o => String(o.id));
+    const scent = raw.scent ? String(raw.scent) : '';
+    const color = raw.color ? String(raw.color) : '';
+    const out = {};
+    if (scentIds.indexOf(scent) >= 0) out.scent = scent;
+    if (colorIds.indexOf(color) >= 0) out.color = color;
+    return out;
+  }
+
+  function addToCart(productId, qty, choices) {
     const d = db();
     const product = d.products.find(p => p.id === productId);
     if (!product) return activeCart(true);
+    const options = selectedChoices(product, choices);
+    // المنتجات التي لها خيارات لا تُضاف إلا بعد اختيار الرائحة/اللون من نافذة المنتج
+    if (productHasOptions(product) && !optionKey(options)) return activeCart(false) || activeCart(true);
     qty = Math.max(1, Number(qty) || 1);
     const cart = activeCart(true);
-    const line = cart.items.find(i => i.productId === productId);
+    const key = cartLineKey({ productId, options });
+    const line = cart.items.find(i => cartLineKey(i) === key);
     const max = Math.max(0, Number(product.stock) || 0);
     if (line) {
       line.qty = Math.min(max, line.qty + qty);
     } else {
       cart.items.push({
         productId, name: product.name, price: product.price, qty: Math.min(max, qty),
-        palette: product.palette, image: product.image && /^https?:/.test(product.image) ? product.image : ''
+        options, palette: product.palette,
+        image: product.image && /^(https?:|data:image)/.test(product.image) ? product.image : ''
       });
     }
     cart.state = 'active';
     cart.updatedAt = new Date().toISOString();
     commit();
     touchVisitor(v => { v.cartStartedAt = v.cartStartedAt || new Date().toISOString(); });
-    track('add_to_cart', { productId, qty });
+    track('add_to_cart', { productId, qty, options });
     return cart;
   }
 
-  function setCartQty(productId, qty) {
+  function setCartQty(productId, qty, choices) {
     const cart = activeCart(true);
-    const line = cart.items.find(i => i.productId === productId);
+    const key = cartLineKey({ productId, options: choices });
+    const line = cart.items.find(i => cartLineKey(i) === key);
     if (!line) return cart;
     const product = db().products.find(p => p.id === productId);
     const max = product ? Math.max(0, Number(product.stock) || 0) : 99;
     line.qty = Math.min(max, Math.max(0, Number(qty) || 0));
-    if (line.qty === 0) cart.items = cart.items.filter(i => i.productId !== productId);
+    if (line.qty === 0) cart.items = cart.items.filter(i => cartLineKey(i) !== key);
     cart.updatedAt = new Date().toISOString();
-    cart.state = cart.items.length ? 'active' : 'active';
+    cart.state = 'active';
     commit();
     return cart;
   }
 
-  function removeFromCart(productId) {
+  function removeFromCart(productId, choices) {
     const cart = activeCart(true);
-    cart.items = cart.items.filter(i => i.productId !== productId);
+    const key = cartLineKey({ productId, options: choices });
+    cart.items = cart.items.filter(i => cartLineKey(i) !== key);
     cart.updatedAt = new Date().toISOString();
     commit();
     return cart;
@@ -894,8 +1016,11 @@
     };
     d.orders.unshift(order);
     d.products.forEach(p => {
-      const line = cart.items.find(i => i.productId === p.id);
-      if (line) p.stock = Math.max(0, (Number(p.stock) || 0) - line.qty);
+      const lines = cart.items.filter(i => i.productId === p.id);
+      if (lines.length) {
+        const used = lines.reduce((sum, i) => sum + (Number(i.qty) || 0), 0);
+        p.stock = Math.max(0, (Number(p.stock) || 0) - used);
+      }
     });
     cart.state = 'converted';
     cart.convertedOrder = order.number;
@@ -1160,7 +1285,8 @@
     if (order.payment) lines.push('الدفع: ' + order.payment);
     lines.push('— المنتجات —');
     (order.items || []).forEach(function (i) {
-      lines.push('• ' + i.name + ' × ' + i.qty + ' = ' + money((Number(i.price) || 0) * (Number(i.qty) || 0)));
+      const choice = choicesText(i);
+      lines.push('• ' + i.name + (choice ? ' (' + choice + ')' : '') + ' × ' + i.qty + ' = ' + money((Number(i.price) || 0) * (Number(i.qty) || 0)));
     });
     lines.push('المجموع الفرعي: ' + money(order.subtotal || 0));
     lines.push('الشحن: ' + (Number(order.shipping) ? money(order.shipping) : 'مجاني'));
@@ -1178,7 +1304,10 @@
       area: c.deliveryArea || c.city || '',
       address: c.address || '',
       payment: order.payment || '',
-      itemsText: (order.items || []).map(function (i) { return i.name + ' × ' + i.qty; }).join(' | '),
+      itemsText: (order.items || []).map(function (i) {
+        const choice = choicesText(i);
+        return i.name + (choice ? ' (' + choice + ')' : '') + ' × ' + i.qty;
+      }).join(' | '),
       subtotal: Number(order.subtotal) || 0,
       shipping: Number(order.shipping) || 0,
       total: Number(order.total) || 0,
@@ -1202,7 +1331,10 @@
 
   /* ---------- التصدير ---------- */
   global.RT = {
-    KEY, palettes, paletteKeys, candleArt, productImage,
+    KEY, palettes, paletteKeys, candleArt, productImage, productImages,
+    productScents, productColors, defaultProductScents, defaultProductColors,
+    productScentOptions, productColorOptions, productHasOptions, optionLabel, choicesText,
+    normalizeProduct, isVisible, visibleCategories, visibleProducts, optionKey, cartLineKey,
     db, commit, replace, reset, exportJSON, importJSON, storageError,
     settings, currency, money, fmtDate, timeAgo, categoryName,
     ORDER_STATUS, SOURCE_LABELS, DEVICE_LABELS,
