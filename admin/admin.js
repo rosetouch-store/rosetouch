@@ -17,6 +17,7 @@
     ]},
     { group: "المتجر", items: [
       { id: "products", label: "المنتجات", icon: "i-box" },
+      { id: "productOptions", label: "خيارات المنتجات", icon: "i-spark" },
       { id: "orders", label: "الطلبات", icon: "i-cart", badge: "orders" },
       { id: "carts", label: "السلات المتروكة", icon: "i-clock", badge: "carts" },
       { id: "favors", label: "التوزيعات", icon: "i-star", badge: "favors" },
@@ -36,7 +37,7 @@
   ];
 
   const TITLES = {
-    dashboard:["لوحة التحكم","نظرة عامة"], products:["المتجر","المنتجات"], orders:["المتجر","الطلبات"],
+    dashboard:["لوحة التحكم","نظرة عامة"], products:["المتجر","المنتجات"], productOptions:["المتجر","خيارات المنتجات"], orders:["المتجر","الطلبات"],
     carts:["المتجر","السلات المتروكة"], favors:["المتجر","التوزيعات"], messages:["المتجر","الرسائل"],
     categories:["المتجر","المجموعات"], offers:["المتجر","العروض"], reviews:["المتجر","آراء العملاء"],
     promo:["المتجر","شريط الإعلان"], shipping:["النظام","الشحن والتوصيل"], loyalty:["النظام","نظام الولاء"], settings:["النظام","إعدادات الموقع"],
@@ -47,7 +48,24 @@
     view: "dashboard",
     productQuery: "", productCat: "all",
     orderStatus: "all", orderQuery: "",
+    remoteOrders: [], remoteOrderFilter: "all", remoteOrderQuery: "", remoteOrdersV2: false,
+    remoteMessages: [], remoteMsgFilter: "all", remoteMsgQuery: "", remoteMessagesV3: false,
+    loyaltyRemoteOrders: [], loyaltyRemoteLoading: false, loyaltyRemoteError: false,
   };
+
+  const REMOTE_ORDER_STATUSES = ["جديد", "مقروء", "قيد التجهيز", "تم الشحن", "مكتمل", "ملغي"];
+  const REMOTE_STATUS_TONE = { "جديد": "gold", "مقروء": "blue", "قيد التجهيز": "warn", "تم الشحن": "blue", "مكتمل": "green", "ملغي": "red" };
+  function remoteStatus(row) {
+    const v = String((row && row.status) || "").trim();
+    return REMOTE_ORDER_STATUSES.indexOf(v) >= 0 ? v : "جديد";
+  }
+  const REMOTE_MSG_STATUSES = ["جديد", "مقروء"];
+  function remoteMsgStatus(row) {
+    return String((row && row.status) || "").trim() === "مقروء" ? "مقروء" : "جديد";
+  }
+  function remoteMsgKey(row) {
+    return String((row && row.createdAt) || "") + "|" + String((row && row.phone) || "");
+  }
 
   function toast(message, type) {
     const wrap = $("#toasts"); if (!wrap) return;
@@ -143,7 +161,7 @@
     $("#pageCrumb").textContent = t[0];
     $("#pageTitle").textContent = t[1];
     const map = {
-      dashboard: renderDashboard, products: renderProducts, orders: renderOrders, carts: renderCarts,
+      dashboard: renderDashboard, products: renderProducts, productOptions: renderProductOptions, orders: renderOrders, carts: renderCarts,
       favors: renderFavors, messages: renderMessages, categories: renderCategories, offers: renderOffers,
       reviews: renderReviews, promo: renderPromo, shipping: renderShipping, loyalty: renderLoyalty, settings: renderSettings,
       account: renderAccount, backup: renderBackup,
@@ -235,14 +253,17 @@
     const counts = {all: all.length, new:0, processing:0, shipped:0, completed:0, cancelled:0};
     all.forEach(o=>{ if(counts[o.status]!=null) counts[o.status]++; });
     $("#content").innerHTML =
-      pageHead('الطلبات','تابع الطلبات، غيّر حالتها، وتواصل مع العملاء مباشرة.', `<button class="btn btn--ghost" type="button" id="exportOrdersBtn">${icon('i-download')} تصدير CSV</button>`) +
-      `<div class="card"><div class="toolbar">
-        <div class="toolbar__search">${icon('i-search')}<input type="search" id="orderSearch" placeholder="رقم الطلب، الاسم، الهاتف…" value="${esc(state.orderQuery)}"></div>
-        <div class="chips">
-          ${[['all','الكل'],['new','جديد'],['processing','قيد التجهيز'],['shipped','تم الشحن'],['completed','مكتمل'],['cancelled','ملغي']].map(([k,l])=>`<button class="chip ${state.orderStatus===k?'is-active':''}" type="button" data-status="${k}">${l}<b>${counts[k]||0}</b></button>`).join('')}
+      pageHead('الطلبات','تابع الطلبات الحقيقية، غيّر حالتها، وتواصل مع العملاء مباشرة.', `<button class="btn btn--ghost" type="button" id="exportOrdersBtn">${icon('i-download')} تصدير CSV</button>`) +
+      `<div class="card"><div class="card__head"><h2>${icon('i-database')} طلبات الزبائن — Google Sheets</h2><span class="badge badge--green" id="remoteOrdersCountBadge">…</span><span class="spacer"></span>${RT.settings().sheetsSheetUrl?`<a class="btn btn--ghost btn--sm" href="${esc(RT.settings().sheetsSheetUrl)}" target="_blank" rel="noopener">${icon('i-external')} فتح الجدول</a>`:''}<button class="btn btn--ghost btn--sm" type="button" id="refreshRemoteOrders">${icon('i-refresh')} تحديث</button></div>
+        <div class="card__body card__body--flush"><div class="note" style="margin:14px">${icon('i-check')}<span>هذه هي الطلبات الحقيقية الواردة من الزوار. تُحفظ تلقائيًا في Google Sheets وتظهر هنا من أي جهاز.</span></div><div id="remoteOrdersBox"></div></div></div>` +
+      `<div class="card" style="margin-top:18px"><div class="card__head"><h2>طلبات هذا المتصفح (محلية)</h2><span class="badge badge--gray">${all.length}</span><span class="spacer"></span></div>
+        <div class="toolbar">
+          <div class="toolbar__search">${icon('i-search')}<input type="search" id="orderSearch" placeholder="رقم الطلب، الاسم، الهاتف…" value="${esc(state.orderQuery)}"></div>
+          <div class="chips">
+            ${[['all','الكل'],['new','جديد'],['processing','قيد التجهيز'],['shipped','تم الشحن'],['completed','مكتمل'],['cancelled','ملغي']].map(([k,l])=>`<button class="chip ${state.orderStatus===k?'is-active':''}" type="button" data-status="${k}">${l}<b>${counts[k]||0}</b></button>`).join('')}
+          </div>
         </div>
-      </div><div class="card__body card__body--flush">${list.length?ordersTable(list,false):emptyState('i-cart','لا توجد طلبات','لا توجد طلبات مطابقة للبحث/الحالة الحالية.')}</div></div>` +
-      `<div class="card" style="margin-top:18px"><div class="card__head"><h2>${icon('i-database')} طلبات الزبائن (Google Sheets)</h2><span class="spacer"></span>${RT.settings().sheetsSheetUrl?`<a class="btn btn--ghost btn--sm" href="${esc(RT.settings().sheetsSheetUrl)}" target="_blank" rel="noopener">${icon('i-external')} فتح الجدول</a>`:''}<button class="btn btn--ghost btn--sm" type="button" id="refreshRemoteOrders">${icon('i-refresh')} تحديث</button></div><div class="card__body card__body--flush"><div class="note" style="margin:14px">${icon('i-alert')}<span>هذه هي الطلبات الحقيقية الواردة من الزوار. الطلبات في الجدول أعلاه محلية (هذا المتصفح) وقد تشمل بيانات تجريبية.</span></div><div id="remoteOrdersBox"></div></div></div>`;
+        <div class="card__body card__body--flush">${list.length?ordersTable(list,false):emptyState('i-cart','لا توجد طلبات محلية مطابقة','لا توجد طلبات مطابقة للبحث/الحالة الحالية. الطلبات الحقيقية في القسم أعلاه.')}</div></div>`;
     $("#orderSearch")?.addEventListener('input', e=>{ state.orderQuery=e.target.value; renderOrders(); });
     $$('[data-status]').forEach(b=>b.addEventListener('click',()=>{ state.orderStatus=b.dataset.status; renderOrders(); }));
     $("#exportOrdersBtn")?.addEventListener('click', exportOrdersCSV);
@@ -283,34 +304,253 @@
   function loadRemoteOrders(){
     const box = $('#remoteOrdersBox'); if (!box) return;
     const s = RT.settings();
-    if (!s.sheetsApiUrl) { box.innerHTML = emptyState('i-alert','لم يتم ربط Google Sheets','أضف رابط المزامنة من «إعدادات الموقع» ليظهر هنا طلبات الزبائن الحقيقية.'); return; }
+    const badge = $('#remoteOrdersCountBadge');
+    if (!s.sheetsApiUrl) { if (badge) badge.textContent = 'غير مربوط'; box.innerHTML = emptyState('i-alert','لم يتم ربط Google Sheets','أضف رابط المزامنة من «إعدادات الموقع» ليظهر هنا طلبات الزبائن الحقيقية.'); return; }
     box.innerHTML = '<div class="empty"><h3>جارٍ تحميل الطلبات…</h3></div>';
     RT.fetchRemote('orders').then(res=>{
-      const rows = (res && res.rows) || [];
-      if (!rows.length) { box.innerHTML = emptyState('i-cart','لا توجد طلبات في الجدول بعد','ستظهر هنا الطلبات الجديدة لحظة وصولها.'); return; }
-      const list = rows.slice().reverse();
-      box.innerHTML = `<div class="table-wrap"><table class="data"><thead><tr><th>التاريخ</th><th>الرقم</th><th>العميل</th><th>المنطقة</th><th>المنتجات</th><th>الإجمالي</th><th>الدفع</th><th></th></tr></thead><tbody>` +
-        list.map(r=>`<tr><td class="muted num">${esc(r.createdAt?fmtDate(r.createdAt):'')}</td><td><span class="order-number">${esc(r.number||'—')}</span></td><td><div class="customer-cell"><b>${esc(r.name||'—')}</b><small dir="ltr">${esc(r.phone||'')}</small></div></td><td>${esc(r.area||'—')}</td><td class="muted">${esc(r.itemsText||'—')}</td><td class="num strong">${money(r.total||0)}</td><td>${esc(r.payment||'—')}</td><td class="cell-actions">${r.phone?`<a class="icon-btn" href="https://wa.me/${esc(String(r.phone).replace(/[^0-9]/g,''))}" target="_blank" rel="noopener" title="واتساب">${icon('i-whatsapp')}</a>`:''}</td></tr>`).join('') +
-        `</tbody></table></div>`;
+      state.remoteOrdersV2 = !!(res && Number(res.v) >= 2);
+      state.remoteOrders = ((res && res.rows) || []).slice().reverse();
+      paintRemoteOrders();
     }).catch(err=>{
+      if (badge) badge.textContent = 'تعذر الجلب';
       box.innerHTML = `<div class="note" style="margin:16px">${icon('i-alert')}<span>تعذر جلب الطلبات: ${esc(err.message||'')} — تأكد من نشر Apps Script بصلاحية «Anyone».</span></div>`;
     });
+  }
+
+  function paintRemoteOrders(focusSearch){
+    const box = $('#remoteOrdersBox'); if (!box) return;
+    const all = state.remoteOrders || [];
+    const badge = $('#remoteOrdersCountBadge');
+    if (badge) badge.textContent = all.length ? all.length + ' طلب' : 'لا طلبات';
+    if (!all.length) { box.innerHTML = emptyState('i-cart','لا توجد طلبات في الجدول بعد','ستظهر هنا الطلبات الجديدة لحظة وصولها.'); return; }
+    const counts = { all: all.length };
+    REMOTE_ORDER_STATUSES.forEach(s => { counts[s] = 0; });
+    all.forEach(r => { const s = remoteStatus(r); counts[s] = (counts[s] || 0) + 1; });
+    const filter = state.remoteOrderFilter || 'all';
+    const q = (state.remoteOrderQuery || '').trim().toLowerCase();
+    const searched = q ? all.filter(r => [r.number, r.name, r.phone, r.area, r.address, r.itemsText].some(v => String(v || '').toLowerCase().includes(q))) : all;
+    const list = filter === 'all' ? searched : searched.filter(r => remoteStatus(r) === filter);
+    const chips = [['all','الكل']].concat(REMOTE_ORDER_STATUSES.map(s => [s, s]))
+      .map(([k, l]) => `<button class="chip ${filter === k ? 'is-active' : ''}" type="button" data-remote-filter="${esc(k)}">${esc(l)}<b>${counts[k] || 0}</b></button>`)
+      .join('');
+    box.innerHTML =
+      `<div class="toolbar" style="padding:12px 16px">
+        <div class="toolbar__search">${icon('i-search')}<input type="search" id="remoteOrderSearch" placeholder="رقم الطلب، الاسم، الهاتف…" value="${esc(state.remoteOrderQuery || '')}"></div>
+        <div class="chips">${chips}</div>
+      </div>` +
+      (state.remoteOrdersV2 ? '' : `<div class="note" style="margin:12px 16px">${icon('i-alert')}<span>لتغيير حالة الطلب أو حذفه، حدّث كود Apps Script إلى الإصدار الجديد ثم أعد النشر (Deploy → Manage deployments → New version). حاليًا يمكنك العرض فقط.</span></div>`) +
+      (list.length
+        ? `<div class="table-wrap"><table class="data"><thead><tr>
+            <th>التاريخ</th><th>الرقم</th><th>العميل</th><th>المنطقة</th><th>المنتجات</th><th>الإجمالي</th><th>الحالة</th><th></th>
+          </tr></thead><tbody>` +
+          list.map(r => {
+            const st = remoteStatus(r);
+            return `<tr>
+              <td class="muted num">${esc(r.createdAt ? fmtDate(r.createdAt) : '')}</td>
+              <td><span class="order-number">${esc(r.number || '—')}</span></td>
+              <td><div class="customer-cell"><b>${esc(r.name || '—')}</b><small dir="ltr">${esc(r.phone || '')}</small></div></td>
+              <td>${esc(r.area || '—')}</td>
+              <td class="muted">${esc(r.itemsText || '—')}</td>
+              <td class="num strong">${money(r.total || 0)}</td>
+              <td>${state.remoteOrdersV2
+                ? `<select class="status-select status-select--${REMOTE_STATUS_TONE[st] || 'gray'}" data-remote-status="${esc(r.number || '')}" aria-label="حالة الطلب">${REMOTE_ORDER_STATUSES.map(o => `<option value="${esc(o)}" ${o === st ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+                : `<span class="badge badge--${REMOTE_STATUS_TONE[st] || 'gray'}">${esc(st)}</span>`}</td>
+              <td class="cell-actions"><div class="row-actions">
+                <button class="icon-btn" type="button" data-remote-view="${esc(r.number || '')}" title="تفاصيل الطلب">${icon('i-eye')}</button>
+                ${r.phone ? `<a class="icon-btn" href="https://wa.me/${esc(String(r.phone).replace(/[^0-9]/g,''))}" target="_blank" rel="noopener" title="واتساب">${icon('i-whatsapp')}</a>` : ''}
+                ${state.remoteOrdersV2
+                  ? `<button class="icon-btn danger" type="button" data-remote-del="${esc(r.number || '')}" title="حذف الطلب">${icon('i-trash')}</button>`
+                  : `<button class="icon-btn" type="button" disabled title="حدّث كود Apps Script لتفعيل الحذف">${icon('i-trash')}</button>`}
+              </div></td>
+            </tr>`;
+          }).join('') +
+          `</tbody></table></div>`
+        : `<div class="empty" style="padding:26px"><h3>لا توجد طلبات مطابقة</h3><p>جرّبي كلمة بحث أخرى أو اختاري «الكل».</p></div>`);
+    $$('[data-remote-filter]').forEach(b => b.addEventListener('click', () => { state.remoteOrderFilter = b.dataset.remoteFilter; paintRemoteOrders(); }));
+    const search = $('#remoteOrderSearch');
+    if (search) {
+      search.addEventListener('input', () => { state.remoteOrderQuery = search.value; paintRemoteOrders(true); });
+      if (focusSearch) { search.focus(); const v = search.value; try { search.setSelectionRange(v.length, v.length); } catch (e) { /* ignore */ } }
+    }
+    $$('[data-remote-status]').forEach(sel => sel.addEventListener('change', () => updateRemoteOrderStatus(sel.dataset.remoteStatus, sel.value)));
+    $$('[data-remote-del]').forEach(b => b.addEventListener('click', () => deleteRemoteOrder(b.dataset.remoteDel)));
+    $$('[data-remote-view]').forEach(b => b.addEventListener('click', () => showRemoteOrder(b.dataset.remoteView)));
+  }
+
+  function updateRemoteOrderStatus(number, status){
+    if (!state.remoteOrdersV2) { toast('حدّث كود Apps Script وأعد النشر لتفعيل تغيير الحالة', 'error'); return; }
+    const row = (state.remoteOrders || []).find(r => String(r.number) === String(number));
+    if (row) row.status = status;
+    if (RT.pushRemote) { try { RT.pushRemote('updateOrder', { number: number, status: status }); } catch (e) { /* ignore */ } }
+    paintRemoteOrders();
+    toast('تم تحديث حالة الطلب إلى «' + status + '»');
+    setTimeout(() => { if ($('#remoteOrdersBox')) loadRemoteOrders(); }, 2600);
+  }
+
+  function deleteRemoteOrder(number){
+    if (!state.remoteOrdersV2) { toast('حدّث كود Apps Script وأعد النشر لتفعيل الحذف', 'error'); return; }
+    if (!confirm('حذف الطلب ' + number + ' من جدول Google نهائيًا؟\nلا يمكن التراجع عن الحذف.')) return;
+    state.remoteOrders = (state.remoteOrders || []).filter(r => String(r.number) !== String(number));
+    if (RT.pushRemote) { try { RT.pushRemote('deleteOrder', { number: number }); } catch (e) { /* ignore */ } }
+    paintRemoteOrders();
+    toast('تم حذف الطلب من الجدول');
+    setTimeout(() => { if ($('#remoteOrdersBox')) loadRemoteOrders(); }, 2600);
+  }
+
+  function showRemoteOrder(number){
+    const r = (state.remoteOrders || []).find(x => String(x.number) === String(number));
+    if (!r) return;
+    const st = remoteStatus(r);
+    const items = String(r.itemsText || '').split('|').map(s => s.trim()).filter(Boolean);
+    const line = (k, v) => v ? `<div class="detail-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>` : '';
+    openModal(`
+      <div class="modal__head">
+        <div><h2 style="font-size:1.2rem">تفاصيل الطلب ${esc(r.number || '')}</h2><p class="muted" style="margin-top:4px">${esc(r.createdAt ? fmtDate(r.createdAt) : '')}</p></div>
+        <span class="badge badge--${REMOTE_STATUS_TONE[st] || 'gray'}">${esc(st)}</span>
+      </div>
+      <div class="detail-list">
+        ${line('العميل', r.name)}
+        ${line('الجوال', r.phone)}
+        ${line('المنطقة', r.area)}
+        ${line('العنوان', r.address)}
+        ${line('طريقة الدفع', r.payment)}
+      </div>
+      <div class="detail-list">
+        <div class="detail-row"><span>المنتجات</span><b>${items.length ? items.map(esc).join('<br>') : '—'}</b></div>
+        ${line('المجموع الفرعي', money(r.subtotal || 0))}
+        ${line('الشحن', Number(r.shipping) ? money(r.shipping) : 'مجاني')}
+        ${line('الإجمالي', money(r.total || 0))}
+        ${line('ملاحظات', r.notes)}
+      </div>
+      <div class="modal__actions">
+        ${state.remoteOrdersV2
+          ? `<select class="status-select status-select--${REMOTE_STATUS_TONE[st] || 'gray'}" id="modalRemoteStatus" data-num="${esc(r.number || '')}">${REMOTE_ORDER_STATUSES.map(o => `<option value="${esc(o)}" ${o === st ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+          : `<span class="badge badge--${REMOTE_STATUS_TONE[st] || 'gray'}">${esc(st)}</span>`}
+        ${r.phone ? `<a class="btn btn--gold" href="https://wa.me/${esc(String(r.phone).replace(/[^0-9]/g,''))}" target="_blank" rel="noopener">${icon('i-whatsapp')} واتساب</a>` : ''}
+        <button class="btn btn--ghost" type="button" data-close-modal>إغلاق</button>
+      </div>
+    `);
+    $('#modalRemoteStatus')?.addEventListener('change', (e) => { updateRemoteOrderStatus(e.target.dataset.num, e.target.value); closeModal(); });
   }
   function loadRemoteMessages(){
     const box = $('#remoteMsgsBox'); if (!box) return;
     const s = RT.settings();
-    if (!s.sheetsApiUrl) { box.innerHTML = emptyState('i-alert','لم يتم ربط Google Sheets','أضف رابط المزامنة من «إعدادات الموقع» ليظهر هنا رسائل الزبائن.'); return; }
+    const badge = $('#remoteMsgsCountBadge');
+    if (!s.sheetsApiUrl) { if (badge) badge.textContent = 'غير مربوط'; box.innerHTML = emptyState('i-alert','لم يتم ربط Google Sheets','أضف رابط المزامنة من «إعدادات الموقع» ليظهر هنا رسائل الزبائن.'); return; }
     box.innerHTML = '<div class="empty"><h3>جارٍ تحميل الرسائل…</h3></div>';
     RT.fetchRemote('messages').then(res=>{
-      const rows = (res && res.rows) || [];
-      if (!rows.length) { box.innerHTML = emptyState('i-send','لا توجد رسائل في الجدول بعد','ستظهر هنا رسائل الزبائن الجديدة.'); return; }
-      const list = rows.slice().reverse();
-      box.innerHTML = `<div class="table-wrap"><table class="data"><thead><tr><th>التاريخ</th><th>المرسل</th><th>الرسالة</th><th></th></tr></thead><tbody>` +
-        list.map(r=>`<tr><td class="muted num">${esc(r.createdAt?fmtDate(r.createdAt):'')}</td><td><div class="customer-cell"><b>${esc(r.name||'—')}</b><small dir="ltr">${esc(r.phone||'')}</small></div></td><td>${esc(r.message||'')}</td><td class="cell-actions">${r.phone?`<a class="icon-btn" href="https://wa.me/${esc(String(r.phone).replace(/[^0-9]/g,''))}" target="_blank" rel="noopener" title="واتساب">${icon('i-whatsapp')}</a>`:''}</td></tr>`).join('') +
-        `</tbody></table></div>`;
+      state.remoteMessagesV3 = !!(res && Number(res.v) >= 3);
+      state.remoteMessages = ((res && res.rows) || []).slice().reverse();
+      paintRemoteMessages();
     }).catch(err=>{
+      if (badge) badge.textContent = 'تعذر الجلب';
       box.innerHTML = `<div class="note" style="margin:16px">${icon('i-alert')}<span>تعذر جلب الرسائل: ${esc(err.message||'')}</span></div>`;
     });
+  }
+
+  function paintRemoteMessages(focusSearch){
+    const box = $('#remoteMsgsBox'); if (!box) return;
+    const all = state.remoteMessages || [];
+    const badge = $('#remoteMsgsCountBadge');
+    if (badge) badge.textContent = all.length ? all.length + ' رسالة' : 'لا رسائل';
+    if (!all.length) { box.innerHTML = emptyState('i-send','لا توجد رسائل في الجدول بعد','ستظهر هنا رسائل الزبائن الجديدة.'); return; }
+    const counts = { all: all.length, 'جديد': 0, 'مقروء': 0 };
+    all.forEach(r => { counts[remoteMsgStatus(r)]++; });
+    const filter = state.remoteMsgFilter || 'all';
+    const q = (state.remoteMsgQuery || '').trim().toLowerCase();
+    const searched = q ? all.filter(r => [r.name, r.phone, r.message].some(v => String(v || '').toLowerCase().includes(q))) : all;
+    const list = filter === 'all' ? searched : searched.filter(r => remoteMsgStatus(r) === filter);
+    const chips = [['all','الكل']].concat(REMOTE_MSG_STATUSES.map(s => [s, s]))
+      .map(([k, l]) => `<button class="chip ${filter === k ? 'is-active' : ''}" type="button" data-msg-filter="${esc(k)}">${esc(l)}<b>${counts[k] || 0}</b></button>`)
+      .join('');
+    box.innerHTML =
+      `<div class="toolbar" style="padding:12px 16px">
+        <div class="toolbar__search">${icon('i-search')}<input type="search" id="remoteMsgSearch" placeholder="الاسم، الهاتف، نص الرسالة…" value="${esc(state.remoteMsgQuery || '')}"></div>
+        <div class="chips">${chips}</div>
+      </div>` +
+      (state.remoteMessagesV3 ? '' : `<div class="note" style="margin:12px 16px">${icon('i-alert')}<span>لتعليم الرسالة كمقروءة أو حذفها، حدّث كود Apps Script إلى الإصدار الجديد ثم أعد النشر (Deploy → Manage deployments → New version). حاليًا يمكنك العرض فقط.</span></div>`) +
+      (list.length
+        ? `<div class="table-wrap"><table class="data"><thead><tr>
+            <th>التاريخ</th><th>المرسل</th><th>الرسالة</th><th>الحالة</th><th></th>
+          </tr></thead><tbody>` +
+          list.map(r => {
+            const st = remoteMsgStatus(r);
+            const key = remoteMsgKey(r);
+            return `<tr>
+              <td class="muted num">${esc(r.createdAt ? fmtDate(r.createdAt) : '')}</td>
+              <td><div class="customer-cell"><b>${esc(r.name || '—')}</b><small dir="ltr">${esc(r.phone || '')}</small></div></td>
+              <td class="msg-preview">${esc(r.message || '—')}</td>
+              <td>${state.remoteMessagesV3
+                ? `<select class="status-select status-select--${st === 'مقروء' ? 'blue' : 'gold'}" data-msg-status="${esc(key)}" aria-label="حالة الرسالة">${REMOTE_MSG_STATUSES.map(o => `<option value="${esc(o)}" ${o === st ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+                : `<span class="badge badge--${st === 'مقروء' ? 'blue' : 'gold'}">${esc(st)}</span>`}</td>
+              <td class="cell-actions"><div class="row-actions">
+                <button class="icon-btn" type="button" data-msg-view="${esc(key)}" title="قراءة الرسالة كاملة">${icon('i-eye')}</button>
+                ${r.phone ? `<a class="icon-btn" href="https://wa.me/${esc(String(r.phone).replace(/[^0-9]/g,''))}" target="_blank" rel="noopener" title="واتساب">${icon('i-whatsapp')}</a>` : ''}
+                ${state.remoteMessagesV3
+                  ? `<button class="icon-btn danger" type="button" data-msg-del="${esc(key)}" title="حذف الرسالة">${icon('i-trash')}</button>`
+                  : `<button class="icon-btn" type="button" disabled title="حدّث كود Apps Script لتفعيل الحذف">${icon('i-trash')}</button>`}
+              </div></td>
+            </tr>`;
+          }).join('') +
+          `</tbody></table></div>`
+        : `<div class="empty" style="padding:26px"><h3>لا توجد رسائل مطابقة</h3><p>جرّبي كلمة بحث أخرى أو اختاري «الكل».</p></div>`);
+    $$('[data-msg-filter]').forEach(b => b.addEventListener('click', () => { state.remoteMsgFilter = b.dataset.msgFilter; paintRemoteMessages(); }));
+    const search = $('#remoteMsgSearch');
+    if (search) {
+      search.addEventListener('input', () => { state.remoteMsgQuery = search.value; paintRemoteMessages(true); });
+      if (focusSearch) { search.focus(); const v = search.value; try { search.setSelectionRange(v.length, v.length); } catch (e) { /* ignore */ } }
+    }
+    $$('[data-msg-status]').forEach(sel => sel.addEventListener('change', () => updateRemoteMessageStatus(sel.dataset.msgStatus, sel.value)));
+    $$('[data-msg-del]').forEach(b => b.addEventListener('click', () => deleteRemoteMessage(b.dataset.msgDel)));
+    $$('[data-msg-view]').forEach(b => b.addEventListener('click', () => showRemoteMessage(b.dataset.msgView)));
+  }
+
+  function updateRemoteMessageStatus(key, status){
+    if (!state.remoteMessagesV3) { toast('حدّث كود Apps Script وأعد النشر لتفعيل حالة الرسالة', 'error'); return; }
+    const row = (state.remoteMessages || []).find(r => remoteMsgKey(r) === String(key));
+    if (row) row.status = status;
+    if (RT.pushRemote) { try { RT.pushRemote('updateMessage', { createdAt: row ? row.createdAt : '', phone: row ? row.phone : '', status: status }); } catch (e) { /* ignore */ } }
+    paintRemoteMessages();
+    toast('تم تحديث حالة الرسالة إلى «' + status + '»');
+    setTimeout(() => { if ($('#remoteMsgsBox')) loadRemoteMessages(); }, 2600);
+  }
+
+  function deleteRemoteMessage(key){
+    if (!state.remoteMessagesV3) { toast('حدّث كود Apps Script وأعد النشر لتفعيل الحذف', 'error'); return; }
+    const row = (state.remoteMessages || []).find(r => remoteMsgKey(r) === String(key));
+    if (!row) return;
+    if (!confirm('حذف رسالة ' + (row.name || row.phone || '') + ' من جدول Google نهائيًا؟\nلا يمكن التراجع عن الحذف.')) return;
+    state.remoteMessages = (state.remoteMessages || []).filter(r => remoteMsgKey(r) !== String(key));
+    if (RT.pushRemote) { try { RT.pushRemote('deleteMessage', { createdAt: row.createdAt, phone: row.phone }); } catch (e) { /* ignore */ } }
+    paintRemoteMessages();
+    toast('تم حذف الرسالة من الجدول');
+    setTimeout(() => { if ($('#remoteMsgsBox')) loadRemoteMessages(); }, 2600);
+  }
+
+  function showRemoteMessage(key){
+    const r = (state.remoteMessages || []).find(x => remoteMsgKey(x) === String(key));
+    if (!r) return;
+    const st = remoteMsgStatus(r);
+    openModal(`
+      <div class="modal__head">
+        <div><h2 style="font-size:1.18rem">رسالة ${esc(r.name || 'زبون')}</h2><p class="muted" style="margin-top:4px">${esc(r.createdAt ? fmtDate(r.createdAt) : '')}</p></div>
+        <span class="badge badge--${st === 'مقروء' ? 'blue' : 'gold'}">${esc(st)}</span>
+      </div>
+      <div class="detail-list">
+        <div class="detail-row"><span>المرسل</span><b>${esc(r.name || '—')}</b></div>
+        <div class="detail-row"><span>الجوال</span><b dir="ltr">${esc(r.phone || '—')}</b></div>
+      </div>
+      <div class="msg-full">${esc(r.message || '—')}</div>
+      <div class="modal__actions">
+        ${state.remoteMessagesV3
+          ? `<select class="status-select status-select--${st === 'مقروء' ? 'blue' : 'gold'}" id="modalMsgStatus" data-key="${esc(key)}">${REMOTE_MSG_STATUSES.map(o => `<option value="${esc(o)}" ${o === st ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+          : `<span class="badge badge--${st === 'مقروء' ? 'blue' : 'gold'}">${esc(st)}</span>`}
+        ${r.phone ? `<a class="btn btn--gold" href="https://wa.me/${esc(String(r.phone).replace(/[^0-9]/g,''))}" target="_blank" rel="noopener">${icon('i-whatsapp')} رد واتساب</a>` : ''}
+        <button class="btn btn--ghost" type="button" data-close-modal>إغلاق</button>
+      </div>
+    `);
+    $('#modalMsgStatus')?.addEventListener('change', (e) => { updateRemoteMessageStatus(e.target.dataset.key, e.target.value); closeModal(); });
+    if (state.remoteMessagesV3 && st === 'جديد') updateRemoteMessageStatus(key, 'مقروء');
   }
 
   /* Carts */
@@ -363,12 +603,15 @@
   /* Messages */
   function renderMessages(){
     const msgs = db().messages||[];
+    const unread = msgs.filter(m=>!m.read).length;
     $("#content").innerHTML =
-      pageHead('الرسائل','رسائل التواصل الواردة من الموقع.') +
-      `<div class="card"><div class="card__body card__body--flush">${msgs.length?`<div class="table-wrap"><table class="data"><thead><tr><th>التاريخ</th><th>المرسل</th><th>الرسالة</th><th>الحالة</th><th></th></tr></thead><tbody>
-        ${msgs.map(m=>`<tr><td class="muted num">${esc(fmtDate(m.createdAt))}</td><td><div class="customer-cell"><b>${esc(m.name||'-')}</b><small>${esc(m.phone||'')}</small></div></td><td>${esc(m.message||'')}</td><td>${m.read?'<span class="badge badge--gray">مقروءة</span>':'<span class="badge badge--gold">جديدة</span>'}</td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-read-msg="${esc(m.id)}" title="تبديل">${icon('i-check')}</button><button class="icon-btn danger" data-del-msg="${esc(m.id)}" title="حذف">${icon('i-trash')}</button></div></td></tr>`).join('')}
-      </tbody></table></div>`:emptyState('i-send','لا توجد رسائل','رسائل التواصل من الموقع ستظهر هنا.')}</div></div>` +
-      `<div class="card" style="margin-top:18px"><div class="card__head"><h2>${icon('i-database')} رسائل الزبائن (Google Sheets)</h2><span class="spacer"></span><button class="btn btn--ghost btn--sm" type="button" id="refreshRemoteMsgs">${icon('i-refresh')} تحديث</button></div><div class="card__body card__body--flush"><div class="note" style="margin:14px">${icon('i-alert')}<span>الرسائل الحقيقية الواردة من الزوار عبر الموقع.</span></div><div id="remoteMsgsBox"></div></div></div>`;
+      pageHead('الرسائل','رسائل الزبائن الحقيقية من Google Sheets + الرسائل المحفوظة في هذا المتصفح.') +
+      `<div class="card"><div class="card__head"><h2>${icon('i-database')} رسائل الزبائن — Google Sheets</h2><span class="badge badge--green" id="remoteMsgsCountBadge">…</span><span class="spacer"></span><button class="btn btn--ghost btn--sm" type="button" id="refreshRemoteMsgs">${icon('i-refresh')} تحديث</button></div>
+        <div class="card__body card__body--flush"><div class="note" style="margin:14px">${icon('i-check')}<span>هذه الرسائل الحقيقية الواردة من الزوار عبر الموقع. يمكنك تصفيتها، تعليمها كمقروءة، أو حذفها.</span></div><div id="remoteMsgsBox"></div></div></div>` +
+      `<div class="card" style="margin-top:18px"><div class="card__head"><h2>رسائل هذا المتصفح (محلية)</h2><span class="badge badge--gray">${msgs.length}</span>${unread?`<span class="badge badge--gold">${unread} غير مقروءة</span>`:''}<span class="spacer"></span></div>
+        <div class="card__body card__body--flush">${msgs.length?`<div class="table-wrap"><table class="data"><thead><tr><th>التاريخ</th><th>المرسل</th><th>الرسالة</th><th>الحالة</th><th></th></tr></thead><tbody>
+          ${msgs.map(m=>`<tr><td class="muted num">${esc(fmtDate(m.createdAt))}</td><td><div class="customer-cell"><b>${esc(m.name||'-')}</b><small>${esc(m.phone||'')}</small></div></td><td class="msg-preview">${esc(m.message||'')}</td><td>${m.read?'<span class="badge badge--gray">مقروءة</span>':'<span class="badge badge--gold">جديدة</span>'}</td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-read-msg="${esc(m.id)}" title="تبديل">${icon('i-check')}</button><button class="icon-btn danger" data-del-msg="${esc(m.id)}" title="حذف">${icon('i-trash')}</button></div></td></tr>`).join('')}
+        </tbody></table></div>`:emptyState('i-send','لا توجد رسائل محلية','رسائل التواصل المحفوظة في هذا المتصفح ستظهر هنا. الرسائل الحقيقية في القسم أعلاه.')}</div></div>`;
     $$('[data-read-msg]').forEach(b=>b.addEventListener('click',()=>{ const m=(db().messages||[]).find(x=>x.id===b.dataset.readMsg); if(!m) return; m.read=!m.read; commit(); }));
     $$('[data-del-msg]').forEach(b=>b.addEventListener('click',()=>{ if(!confirm('حذف الرسالة؟')) return; const d=db(); d.messages=d.messages.filter(x=>x.id!==b.dataset.delMsg); commit('تم الحذف'); }));
     $('#refreshRemoteMsgs')?.addEventListener('click', loadRemoteMessages);
@@ -386,15 +629,15 @@
   function renderProducts(){
     const d=db(); const cats=d.categories||[]; const products=filteredProducts(); const all=(d.products||[]);
     $("#content").innerHTML =
-      pageHead('المنتجات','أضف وعدّل الأسعار والكميات والصور — التغييرات تُحفظ محليًا ويمكن نشرها للجميع.', `<button class="btn btn--gold" type="button" id="addProductBtn">${icon('i-plus')} منتج جديد</button>`) +
+      pageHead('المنتجات','أضف وعدّل الأسعار والكميات والصور والروائح والألوان — التغييرات تُحفظ محليًا ويمكن نشرها للجميع.', `<button class="btn btn--gold" type="button" id="addProductBtn">${icon('i-plus')} منتج جديد</button>`) +
       `<div class="card">
         <div class="toolbar">
           <div class="toolbar__search">${icon('i-search')}<input type="search" id="productSearch" placeholder="ابحث باسم المنتج…" value="${esc(state.productQuery)}"></div>
           <select id="productCatFilter"><option value="all">كل المجموعات (${all.length})</option>${cats.map(c=>`<option value="${esc(c.id)}" ${state.productCat===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
           <span class="toolbar__count">${products.length} منتج</span>
         </div>
-        <div class="card__body card__body--flush">${products.length?`<div class="table-wrap"><table class="data"><thead><tr><th>المنتج</th><th>المجموعة</th><th>السعر</th><th>المخزون</th><th>مفعّل</th><th></th></tr></thead><tbody>
-          ${products.map(p=>{ const c=cats.find(x=>x.id===p.category); return `<tr><td><div class="cell-product"><img src="${esc(RT.productImage(p))}" alt="" loading="lazy"><div><b>${esc(p.name||'')}</b><small>${esc(p.desc||'')}</small></div></div></td><td><span class="badge badge--gray">${esc(c?.name||'-')}</span></td><td class="num strong">${money(p.price)}</td><td class="num"><span class="badge ${(Number(p.stock)||0)>0?'badge--green':'badge--red'}">${esc(p.stock||0)}</span></td><td><label class="switch" title="تفعيل"><input type="checkbox" data-toggle-prod="${esc(p.id)}" ${p.active!==false?'checked':''}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-prod="${esc(p.id)}" title="تعديل">${icon('i-edit')}</button><button class="icon-btn danger" data-del-prod="${esc(p.id)}" title="حذف">${icon('i-trash')}</button></div></td></tr>`; }).join('')}
+        <div class="card__body card__body--flush">${products.length?`<div class="table-wrap"><table class="data"><thead><tr><th>المنتج</th><th>المجموعة</th><th>السعر</th><th>المخزون</th><th>مفعّل</th><th>ظاهر</th><th></th></tr></thead><tbody>
+          ${products.map(p=>{ const c=cats.find(x=>x.id===p.category); const imageCount=RT.productImages(p).length; return `<tr><td><div class="cell-product"><img src="${esc(RT.productImage(p))}" alt="" loading="lazy"><div><b>${esc(p.name||'')}</b><small>${esc(p.desc||'')}</small><small class="muted">${imageCount>1?imageCount+' صور · ':''}${(RT.productScentOptions(p).length||0)} روائح · ${(RT.productColorOptions(p).length||0)} ألوان</small></div></div></td><td><span class="badge badge--gray">${esc(c?.name||'-')}</span></td><td class="num strong">${money(p.price)}</td><td class="num"><span class="badge ${(Number(p.stock)||0)>0?'badge--green':'badge--red'}">${esc(p.stock||0)}</span></td><td><label class="switch" title="تفعيل"><input type="checkbox" data-toggle-prod="${esc(p.id)}" ${p.active!==false?'checked':''}><i></i></label></td><td><label class="switch" title="إظهار في المتجر"><input type="checkbox" data-hide-prod="${esc(p.id)}" ${p.hidden===true?'':'checked'}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-prod="${esc(p.id)}" title="تعديل">${icon('i-edit')}</button><button class="icon-btn danger" data-del-prod="${esc(p.id)}" title="حذف">${icon('i-trash')}</button></div></td></tr>`; }).join('')}
         </tbody></table></div>`:emptyState('i-box','لا توجد منتجات','أضف منتجًا جديدًا ليظهر هنا وفي المتجر.')}</div>
       </div>`;
     $('#addProductBtn').onclick=()=>openProductModal(null);
@@ -403,13 +646,48 @@
     $$('[data-edit-prod]').forEach(b=>b.addEventListener('click',()=>openProductModal(b.dataset.editProd)));
     $$('[data-del-prod]').forEach(b=>b.addEventListener('click',()=>{ if(!confirm('حذف المنتج؟')) return; const d=db(); d.products=d.products.filter(x=>x.id!==b.dataset.delProd); commit('تم حذف المنتج'); }));
     $$('[data-toggle-prod]').forEach(inp=>inp.addEventListener('change',()=>{ const p=(db().products||[]).find(x=>x.id===inp.dataset.toggleProd); if(p){ p.active=inp.checked; commit(); } }));
+    $$('[data-hide-prod]').forEach(inp=>inp.addEventListener('change',()=>{ const p=(db().products||[]).find(x=>x.id===inp.dataset.hideProd); if(p){ p.hidden=!inp.checked; commit(inp.checked?'المنتج ظاهر في المتجر':'المنتج مخفي عن المتجر'); } }));
   }
   function openProductModal(id){
     const d=db(); const cats=d.categories||[];
-    const p = id ? (d.products||[]).find(x=>x.id===id) : {id:uid('p'),name:'',en:'',category:cats[0]?.id||'c1',price:0,compareAt:0,stock:0,palette:'rose',scent:'',desc:'',sku:'',weight:'',burnTime:'',image:'',active:true,featured:false,bestseller:false,createdAt:new Date().toISOString()};
+    const p = id ? (d.products||[]).find(x=>x.id===id) : {
+      id:uid('p'),name:'',en:'',category:cats[0]?.id||'c1',price:0,compareAt:0,stock:0,palette:'rose',
+      scent:'',desc:'',sku:'',weight:'',burnTime:'',image:'',images:[],scentOptions:[],colorOptions:[],
+      hidden:false,active:true,featured:false,bestseller:false,createdAt:new Date().toISOString()
+    };
     if(!p) return;
     const isNew=!id;
-    openModal(`<div class="modal__head"><h2>${isNew?'إضافة منتج':'تعديل المنتج'}</h2><p>الاسم، السعر، الكمية، الصورة، والوصف.</p></div>
+    const scents = RT.productScents().slice();
+    const colors = RT.productColors().slice();
+    let images = RT.productImages(p).slice();
+
+    function optChip(kind, o, chosen){
+      return `<label class="opt-check${o.hidden?' is-hidden':''}" title="${o.hidden?'مخفي عن العملاء':''}">
+        <input type="checkbox" data-pm-${kind}="${esc(o.id)}" ${chosen?'checked':''}>
+        ${kind==='color'&&o.hex?`<span class="opt-swatch" style="--swatch:${esc(o.hex)}"></span>`:''}
+        <span>${esc(o.label)}</span>${o.hidden?'<small>مخفي</small>':''}
+      </label>`;
+    }
+    function renderImages(){
+      const host=$('#pmImages'); if(!host) return;
+      host.innerHTML = images.length ? images.map((src,i)=>`<div class="option-img-row">
+        ${src?`<img src="${esc(src)}" alt="صورة ${i+1}">`:`<div class="option-img-row__placeholder">${icon('i-image')}</div>`}
+        <div class="option-img-row__fields">
+          ${/^data:image/.test(src)?`<small class="muted">صورة مرفوعة ${i+1} (محفوظة داخل المتصفح)</small>`:`<input type="text" data-pm-img="${i}" value="${esc(src)}" placeholder="رابط الصورة أو assets/img/...">`}
+          <div class="row-actions">
+            <button class="btn btn--ghost btn--sm" type="button" data-pm-img-first="${i}" ${i===0?'disabled':''}>${icon('i-arrow-up')} الصورة الرئيسية</button>
+            <button class="icon-btn danger" type="button" data-pm-img-del="${i}" title="حذف الصورة">${icon('i-trash')}</button>
+          </div>
+        </div>
+      </div>`).join('') : `<p class="muted">لا توجد صور — سيظهر رسم الشمعة التوليدي. أضف رابطًا أو ارفع صورًا.</p>`;
+      $$('[data-pm-img-first]',host).forEach(b=>b.onclick=()=>{ syncImages(); const i=Number(b.dataset.pmImgFirst); const item=images.splice(i,1)[0]; if(item) images.unshift(item); renderImages(); });
+      $$('[data-pm-img-del]',host).forEach(b=>b.onclick=()=>{ syncImages(); images.splice(Number(b.dataset.pmImgDel),1); renderImages(); });
+    }
+    function syncImages(){
+      $$('[data-pm-img]', $('#modalContent')).forEach(inp=>{ const i=Number(inp.dataset.pmImg); if(images[i]!=null) images[i]=inp.value.trim(); });
+    }
+
+    openModal(`<div class="modal__head"><h2>${isNew?'إضافة منتج':'تعديل المنتج'}</h2><p>السعر والكمية والصور والروائح والألوان والظهور في المتجر.</p></div>
       <div class="form-grid">
         <label class="field"><span>الاسم</span><input id="pmName" value="${esc(p.name||'')}"></label>
         <label class="field"><span>الاسم (EN)</span><input id="pmEn" value="${esc(p.en||'')}"></label>
@@ -417,32 +695,56 @@
         <label class="field"><span>سعر قبل الخصم</span><input id="pmCompare" type="number" step="0.01" value="${esc(p.compareAt||0)}"></label>
         <label class="field"><span>الكمية بالمخزون</span><input id="pmStock" type="number" step="1" value="${esc(p.stock||0)}"></label>
         <label class="field"><span>المجموعة</span><select id="pmCat">${cats.map(c=>`<option value="${esc(c.id)}" ${p.category===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-        <label class="field"><span>لوحة الألوان</span><select id="pmPalette">${(RT.paletteKeys||['rose']).map(k=>`<option value="${esc(k)}" ${p.palette===k?'selected':''}>${esc(k)}</option>`).join('')}</select></label>
+        <label class="field"><span>لوحة الألوان (للرسم التوليدي)</span><select id="pmPalette">${(RT.paletteKeys||['rose']).map(k=>`<option value="${esc(k)}" ${p.palette===k?'selected':''}>${esc(k)}</option>`).join('')}</select></label>
         <label class="field"><span>SKU</span><input id="pmSku" value="${esc(p.sku||'')}"></label>
-        <label class="field"><span>الرائحة</span><input id="pmScent" value="${esc(p.scent||'')}"></label>
+        <label class="field"><span>الرائحة (نص تعريفي)</span><input id="pmScent" value="${esc(p.scent||'')}"></label>
         <label class="field"><span>الوزن</span><input id="pmWeight" value="${esc(p.weight||'')}"></label>
         <label class="field"><span>مدة الاحتراق</span><input id="pmBurn" value="${esc(p.burnTime||'')}"></label>
-        <label class="field full"><span>رابط/صورة المنتج (اتركه فارغًا للصورة التوليدية)</span><input id="pmImage" value="${/^data:image/.test(p.image||'')?'':esc(p.image||'')}" placeholder="assets/img/... أو رابط"><div class="row-actions" style="margin-top:8px"><label class="btn btn--ghost btn--sm" style="cursor:pointer">${icon('i-upload')} رفع صورة<input type="file" id="pmUpload" accept="image/*" hidden></label><button class="btn btn--ghost btn--sm" type="button" id="pmClearImg">إزالة</button></div></label>
+        <div class="field full"><span>صور المنتج — الأولى هي الصورة الرئيسية في المتجر</span>
+          <div class="option-images" id="pmImages"></div>
+          <div class="row-actions" style="margin-top:8px">
+            <button class="btn btn--ghost btn--sm" type="button" id="pmAddImage">${icon('i-plus')} إضافة رابط صورة</button>
+            <label class="btn btn--ghost btn--sm" style="cursor:pointer">${icon('i-upload')} رفع صور متعددة<input type="file" id="pmUpload" accept="image/*" multiple hidden></label>
+          </div>
+        </div>
+        <div class="field full"><span>روائح الشمع المتاحة للاختيار</span>
+          <div class="option-picker">${scents.map(o=>optChip('scent',o,(p.scentOptions||[]).indexOf(o.id)>=0)).join('')||'<small class="muted">لا توجد روائح — أضفها من «خيارات المنتجات».</small>'}</div>
+        </div>
+        <div class="field full"><span>ألوان الشمع المتاحة للاختيار</span>
+          <div class="option-picker">${colors.map(o=>optChip('color',o,(p.colorOptions||[]).indexOf(o.id)>=0)).join('')||'<small class="muted">لا توجد ألوان — أضفها من «خيارات المنتجات».</small>'}</div>
+          <small class="muted">الخيارات الموسومة «مخفي» لا تظهر للعميل حتى لو كانت محددة هنا.</small>
+        </div>
         <label class="field full"><span>الوصف</span><textarea id="pmDesc">${esc(p.desc||'')}</textarea></label>
-        <div class="full" style="display:flex;gap:16px;flex-wrap:wrap">
+        <div class="full option-flags">
           <label class="checkbox-row"><input type="checkbox" id="pmActive" ${p.active!==false?'checked':''}> مفعّل</label>
+          <label class="checkbox-row"><input type="checkbox" id="pmHidden" ${p.hidden===true?'checked':''}> مخفي عن المتجر</label>
           <label class="checkbox-row"><input type="checkbox" id="pmFeatured" ${p.featured?'checked':''}> مميز</label>
           <label class="checkbox-row"><input type="checkbox" id="pmBest" ${p.bestseller?'checked':''}> الأكثر مبيعًا</label>
         </div>
       </div>
       <div class="modal__actions"><button class="btn btn--gold" id="pmSave">${icon('i-save')} حفظ المنتج</button><span class="spacer"></span><button class="btn btn--ghost" data-close>إلغاء</button></div>`, {wide:true});
-    let uploaded = /^data:image/.test(p.image||'') ? p.image : null;
-    $('#pmUpload').onchange = e=>{ const file=e.target.files&&e.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=()=>{ uploaded=r.result; toast('تم تحميل الصورة','success'); }; r.readAsDataURL(file); };
-    $('#pmClearImg').onclick=()=>{ uploaded=''; $('#pmImage').value=''; toast('ستُزال الصورة عند الحفظ'); };
+    renderImages();
+    $('#pmAddImage').onclick=()=>{ syncImages(); images.push(''); renderImages(); const last=$$('[data-pm-img]', $('#modalContent')).pop(); if(last) last.focus(); };
+    $('#pmUpload').onchange = e=>{
+      const files=Array.from(e.target.files||[]); if(!files.length) return;
+      let left=files.length;
+      files.forEach(file=>{ const r=new FileReader(); r.onload=()=>{ syncImages(); images.push(String(r.result)); left--; if(!left){ renderImages(); toast('تم تحميل الصور','success'); } }; r.readAsDataURL(file); });
+      e.target.value='';
+    };
     $('#pmSave').onclick=()=>{
+      syncImages();
+      const cleanImages=images.filter(x=>typeof x==='string'&&x.trim());
       const obj = {
         ...p,
         name: $('#pmName').value.trim(), en: $('#pmEn').value.trim(),
         price: Number($('#pmPrice').value||0), compareAt: Number($('#pmCompare').value||0), stock: Number($('#pmStock').value||0),
         category: $('#pmCat').value, palette: $('#pmPalette').value, sku: $('#pmSku').value.trim(),
         scent: $('#pmScent').value.trim(), weight: $('#pmWeight').value.trim(), burnTime: $('#pmBurn').value.trim(),
-        image: uploaded !== null ? (uploaded || '') : ($('#pmImage').value.trim() || p.image || ''),
+        images: cleanImages, image: cleanImages[0]||'',
+        scentOptions: $$('[data-pm-scent]:checked', $('#modalContent')).map(x=>x.dataset.pmScent),
+        colorOptions: $$('[data-pm-color]:checked', $('#modalContent')).map(x=>x.dataset.pmColor),
         desc: $('#pmDesc').value.trim(),
+        hidden: $('#pmHidden').checked,
         active: $('#pmActive').checked, featured: $('#pmFeatured').checked, bestseller: $('#pmBest').checked,
       };
       if(!obj.name){ toast('الرجاء إدخال اسم المنتج','error'); return; }
@@ -454,6 +756,28 @@
     $('[data-close]', $("#modalContent")).onclick=closeModal;
   }
 
+  /* خيارات المنتجات: مكتبة الروائح والألوان + إظهار/إخفاء */
+  function renderProductOptions(){
+    const s=RT.settings();
+    const scents=RT.productScents().slice();
+    const colors=RT.productColors().slice();
+    const table=(kind,list)=>`<div class="card"><div class="card__head"><h2>${kind==='color'?'الألوان':'الروائح'}</h2><span class="spacer"></span><button class="btn btn--gold btn--sm" type="button" data-add-opt="${kind}">${icon('i-plus')} إضافة ${kind==='color'?'لون':'رائحة'}</button></div>
+      <div class="card__body card__body--flush">${list.length?`<div class="table-wrap"><table class="data"><thead><tr><th>الخيار</th><th>${kind==='color'?'اللون':'المعرّف'}</th><th>ظاهر للعملاء</th><th></th></tr></thead><tbody>
+      ${list.map(o=>`<tr><td><input type="text" data-opt-label="${kind}:${esc(o.id)}" value="${esc(o.label||'')}" style="max-width:220px"></td><td>${kind==='color'?`<input type="color" data-opt-hex="${kind}:${esc(o.id)}" value="${esc(o.hex||'#c47786')}" style="width:56px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">`:`<code class="muted" dir="ltr">${esc(o.id)}</code>`}</td><td><label class="switch"><input type="checkbox" data-opt-hidden="${kind}:${esc(o.id)}" ${o.hidden===true?'':'checked'}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-opt-save="${kind}:${esc(o.id)}" title="حفظ">${icon('i-save')}</button><button class="icon-btn danger" data-opt-del="${kind}:${esc(o.id)}" title="حذف">${icon('i-trash')}</button></div></td></tr>`).join('')}
+      </tbody></table></div>`:emptyState('i-spark','لا توجد خيارات','أضف خيارًا جديدًا ليختار منه العملاء.')}</div></div>`;
+
+    $("#content").innerHTML =
+      pageHead('خيارات المنتجات','أنشئ قوائم الروائح والألوان، وحدّد لكل منتج ما يناسبه، وأخفِ أي خيار أو منتج دون حذفه.') +
+      `<div class="note" style="margin-bottom:14px">${icon('i-alert')}<span>الخيار المخفي يختفي فورًا من نافذة المنتج في المتجر، ويبقى محفوظًا هنا ليعود عند تفعيله. احفظ ثم انشر <code>store-data.js</code> ليظهر للجميع.</span></div>
+      <div class="settings-grid"><div class="span-2">${table('scent',scents)}</div><div class="span-2" style="margin-top:14px">${table('color',colors)}</div></div>`;
+
+    function arrFor(kind){ return kind==='color' ? (s.productColors=RT.productColors()) : (s.productScents=RT.productScents()); }
+    $$('[data-add-opt]').forEach(b=>b.onclick=()=>{ const kind=b.dataset.addOpt; const list=arrFor(kind); const id=uid(kind==='color'?'color':'scent'); list.push({id,label:kind==='color'?'لون جديد':'رائحة جديدة',hex:kind==='color'?'#c47786':'',hidden:false}); commit('تمت إضافة الخيار'); });
+    $$('[data-opt-save]').forEach(b=>b.onclick=()=>{ const [kind,id]=b.dataset.optSave.split(':'); const o=arrFor(kind).find(x=>String(x.id)===id); if(!o) return; const label=$(`[data-opt-label="${kind}:${id}"]`)?.value.trim(); if(label) o.label=label; const hex=$(`[data-opt-hex="${kind}:${id}"]`)?.value; if(hex) o.hex=hex; const vis=$(`[data-opt-hidden="${kind}:${id}"]`); if(vis) o.hidden=!vis.checked; commit('تم حفظ الخيار'); });
+    $$('[data-opt-hidden]').forEach(inp=>inp.onchange=()=>{ const [kind,id]=inp.dataset.optHidden.split(':'); const o=arrFor(kind).find(x=>String(x.id)===id); if(o){ o.hidden=!inp.checked; commit(inp.checked?'الخيار ظاهر للعملاء':'الخيار مخفي عن العملاء'); } });
+    $$('[data-opt-del]').forEach(b=>b.onclick=()=>{ const [kind,id]=b.dataset.optDel.split(':'); if(!confirm('حذف هذا الخيار من كل المنتجات؟')) return; const list=arrFor(kind); s[kind==='color'?'productColors':'productScents']=list.filter(x=>String(x.id)!==id); (db().products||[]).forEach(p=>{ const key=kind==='color'?'colorOptions':'scentOptions'; if(Array.isArray(p[key])) p[key]=p[key].filter(x=>String(x)!==id); }); commit('تم حذف الخيار'); });
+  }
+
   /* Categories */
   function renderCategories(){
     const d=db(); const cats=d.categories||[]; const products=d.products||[];
@@ -461,12 +785,13 @@
       pageHead('المجموعات','إدارة تصنيفات/مجموعات المنتجات الظاهرة في المتجر.') +
       `<div class="settings-grid">
         <div class="card span-2"><div class="card__head"><h2>المجموعات الحالية</h2><span class="spacer"></span><button class="btn btn--gold btn--sm" id="addCatBtn">${icon('i-plus')} إضافة مجموعة</button></div>
-          <div class="card__body card__body--flush">${cats.length?`<div class="table-wrap"><table class="data"><thead><tr><th>الاسم</th><th>المعرّف</th><th>الوصف</th><th>المنتجات</th><th></th></tr></thead><tbody>
-            ${cats.map(c=>{ const count=products.filter(p=>p.category===c.id).length; return `<tr><td><input type="text" value="${esc(c.name||'')}" data-cat-name="${esc(c.id)}" style="max-width:220px"></td><td><code class="muted" dir="ltr">${esc(c.id)}</code></td><td><input type="text" value="${esc(c.desc||'')}" data-cat-desc="${esc(c.id)}"></td><td class="num">${count}</td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-cat-save="${esc(c.id)}" title="حفظ">${icon('i-save')}</button><button class="icon-btn danger" data-cat-del="${esc(c.id)}" title="${count?'انقل المنتجات أولًا':'حذف'}" ${count?'disabled':''}>${icon('i-trash')}</button></div></td></tr>`; }).join('')}
+          <div class="card__body card__body--flush">${cats.length?`<div class="table-wrap"><table class="data"><thead><tr><th>الاسم</th><th>المعرّف</th><th>الوصف</th><th>المنتجات</th><th>ظاهر</th><th></th></tr></thead><tbody>
+            ${cats.map(c=>{ const count=products.filter(p=>p.category===c.id).length; return `<tr><td><input type="text" value="${esc(c.name||'')}" data-cat-name="${esc(c.id)}" style="max-width:220px"></td><td><code class="muted" dir="ltr">${esc(c.id)}</code></td><td><input type="text" value="${esc(c.desc||'')}" data-cat-desc="${esc(c.id)}"></td><td class="num">${count}</td><td><label class="switch" title="إظهار في المتجر"><input type="checkbox" data-cat-hidden="${esc(c.id)}" ${c.hidden===true?'':'checked'}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-cat-save="${esc(c.id)}" title="حفظ">${icon('i-save')}</button><button class="icon-btn danger" data-cat-del="${esc(c.id)}" title="${count?'انقل المنتجات أولًا':'حذف'}" ${count?'disabled':''}>${icon('i-trash')}</button></div></td></tr>`; }).join('')}
           </tbody></table></div>`:emptyState('i-tags','لا توجد مجموعات','أضف مجموعة لتنظيم المنتجات.')}</div></div>
       </div>`;
-    $('#addCatBtn').onclick=()=>{ db().categories.push({id:uid('c'),name:'مجموعة جديدة',slug:'new',desc:'',palette:'rose'}); commit('تمت إضافة مجموعة'); };
-    $$('[data-cat-save]').forEach(b=>b.addEventListener('click',()=>{ const id=b.dataset.catSave; const c=(db().categories||[]).find(x=>x.id===id); if(!c) return; c.name=$(`[data-cat-name="${id}"]`).value.trim()||c.name; c.desc=$(`[data-cat-desc="${id}"]`).value.trim(); commit('تم حفظ المجموعة'); }));
+    $('#addCatBtn').onclick=()=>{ db().categories.push({id:uid('c'),name:'مجموعة جديدة',slug:'new',desc:'',palette:'rose',hidden:false}); commit('تمت إضافة مجموعة'); };
+    $$('[data-cat-save]').forEach(b=>b.addEventListener('click',()=>{ const id=b.dataset.catSave; const c=(db().categories||[]).find(x=>x.id===id); if(!c) return; c.name=$(`[data-cat-name="${id}"]`).value.trim()||c.name; c.desc=$(`[data-cat-desc="${id}"]`).value.trim(); const vis=$(`[data-cat-hidden="${id}"]`); if(vis) c.hidden=!vis.checked; commit('تم حفظ المجموعة'); }));
+    $$('[data-cat-hidden]').forEach(inp=>inp.addEventListener('change',()=>{ const c=(db().categories||[]).find(x=>x.id===inp.dataset.catHidden); if(c){ c.hidden=!inp.checked; commit(inp.checked?'المجموعة ظاهرة في المتجر':'المجموعة مخفية عن المتجر'); } }));
     $$('[data-cat-del]').forEach(b=>b.addEventListener('click',()=>{ if(b.disabled) return; if(!confirm('حذف المجموعة؟')) return; const d=db(); d.categories=d.categories.filter(x=>x.id!==b.dataset.catDel); commit('تم حذف المجموعة'); }));
   }
 
@@ -475,13 +800,14 @@
     const d=db(); const offers=d.offers||[];
     $("#content").innerHTML =
       pageHead('العروض','إدارة العروض المميزة والخصومات (إضافة/تعديل/حذف/مدة).', `<button class="btn btn--gold" type="button" id="addOfferBtn">${icon('i-plus')} عرض جديد</button>`) +
-      `<div class="card"><div class="card__body card__body--flush">${offers.length?`<div class="table-wrap"><table class="data"><thead><tr><th>العرض</th><th>السعر</th><th>قبل الخصم</th><th>المدة/ينتهي</th><th>مفعّل</th><th></th></tr></thead><tbody>
-        ${offers.map(o=>`<tr><td><div class="cell-product">${o.image?`<img src="${esc(o.image)}" alt="">`:''}<div><b>${esc(o.title||o.name||'-')}</b><small>${esc(o.desc||o.short||'')}</small></div></div></td><td class="num strong">${money(o.price||0)}</td><td class="num muted">${o.compareAt?money(o.compareAt):'—'}</td><td class="muted">${esc(o.endsAt?fmtDate(o.endsAt):(o.duration||'—'))}</td><td><label class="switch"><input type="checkbox" data-toggle-offer="${esc(o.id)}" ${o.active!==false?'checked':''}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-offer="${esc(o.id)}">${icon('i-edit')}</button><button class="icon-btn danger" data-del-offer="${esc(o.id)}">${icon('i-trash')}</button></div></td></tr>`).join('')}
+      `<div class="card"><div class="card__body card__body--flush">${offers.length?`<div class="table-wrap"><table class="data"><thead><tr><th>العرض</th><th>السعر</th><th>قبل الخصم</th><th>المدة/ينتهي</th><th>مفعّل</th><th>ظاهر</th><th></th></tr></thead><tbody>
+        ${offers.map(o=>`<tr><td><div class="cell-product">${o.image?`<img src="${esc(o.image)}" alt="">`:''}<div><b>${esc(o.title||o.name||'-')}</b><small>${esc(o.desc||o.short||'')}</small></div></div></td><td class="num strong">${money(o.price||0)}</td><td class="num muted">${o.compareAt?money(o.compareAt):'—'}</td><td class="muted">${esc(o.endsAt?fmtDate(o.endsAt):(o.duration||'—'))}</td><td><label class="switch"><input type="checkbox" data-toggle-offer="${esc(o.id)}" ${o.active!==false?'checked':''}><i></i></label></td><td><label class="switch"><input type="checkbox" data-hide-offer="${esc(o.id)}" ${o.hidden===true?'':'checked'}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-offer="${esc(o.id)}">${icon('i-edit')}</button><button class="icon-btn danger" data-del-offer="${esc(o.id)}">${icon('i-trash')}</button></div></td></tr>`).join('')}
       </tbody></table></div>`:emptyState('i-spark','لا توجد عروض','أضف عرضًا مميزًا ليظهر في المتجر.')}</div></div>`;
     $('#addOfferBtn').onclick=()=>openOfferModal(null);
     $$('[data-edit-offer]').forEach(b=>b.addEventListener('click',()=>openOfferModal(b.dataset.editOffer)));
     $$('[data-del-offer]').forEach(b=>b.addEventListener('click',()=>{ if(!confirm('حذف العرض؟')) return; const d=db(); d.offers=d.offers.filter(x=>x.id!==b.dataset.delOffer); commit('تم حذف العرض'); }));
     $$('[data-toggle-offer]').forEach(inp=>inp.addEventListener('change',()=>{ const o=(db().offers||[]).find(x=>x.id===inp.dataset.toggleOffer); if(o){ o.active=inp.checked; commit(); } }));
+    $$('[data-hide-offer]').forEach(inp=>inp.addEventListener('change',()=>{ const o=(db().offers||[]).find(x=>x.id===inp.dataset.hideOffer); if(o){ o.hidden=!inp.checked; commit(); } }));
   }
   function openOfferModal(id){
     const d=db(); const o = id ? (d.offers||[]).find(x=>x.id===id) : {id:uid('offer'),title:'عرض جديد',desc:'',price:0,compareAt:0,image:'',active:true,endsAt:'',duration:''};
@@ -495,11 +821,11 @@
         <label class="field"><span>ينتهي في (تاريخ/وقت)</span><input id="ofEnds" type="datetime-local" value="${esc(o.endsAt?new Date(o.endsAt).toISOString().slice(0,16):'')}"></label>
         <label class="field"><span>مدة/ملاحظة</span><input id="ofDur" value="${esc(o.duration||'')}"></label>
         <label class="field span-2"><span>صورة العرض (رابط)</span><input id="ofImg" value="${/^data:image/.test(o.image||'')?'':esc(o.image||'')}"></label>
-        <div class="full"><label class="checkbox-row"><input type="checkbox" id="ofActive" ${o.active!==false?'checked':''}> العرض مفعّل</label></div>
+        <div class="full option-flags"><label class="checkbox-row"><input type="checkbox" id="ofActive" ${o.active!==false?'checked':''}> العرض مفعّل</label><label class="checkbox-row"><input type="checkbox" id="ofHidden" ${o.hidden===true?'checked':''}> مخفي عن المتجر</label></div>
       </div>
       <div class="modal__actions"><button class="btn btn--gold" id="ofSave">${icon('i-save')} حفظ</button><span class="spacer"></span><button class="btn btn--ghost" data-close>إلغاء</button></div>`, {wide:true});
     $('#ofSave').onclick=()=>{
-      const obj={...o, title:$('#ofTitle').value.trim()||'عرض', desc:$('#ofDesc').value.trim(), price:Number($('#ofPrice').value||0), compareAt:Number($('#ofCompare').value||0), endsAt: $('#ofEnds').value?new Date($('#ofEnds').value).toISOString():'', duration:$('#ofDur').value.trim(), image:$('#ofImg').value.trim(), active:$('#ofActive').checked};
+      const obj={...o, title:$('#ofTitle').value.trim()||'عرض', desc:$('#ofDesc').value.trim(), price:Number($('#ofPrice').value||0), compareAt:Number($('#ofCompare').value||0), endsAt: $('#ofEnds').value?new Date($('#ofEnds').value).toISOString():'', duration:$('#ofDur').value.trim(), image:$('#ofImg').value.trim(), active:$('#ofActive').checked, hidden:$('#ofHidden').checked};
       const arr=db().offers||(db().offers=[]); const idx=arr.findIndex(x=>x.id===obj.id); if(idx>=0) arr[idx]=obj; else arr.unshift(obj); commit(isNew?'تمت إضافة العرض':'تم حفظ العرض'); closeModal();
     };
     $('[data-close]', $("#modalContent")).onclick=closeModal;
@@ -510,13 +836,14 @@
     const d=db(); const reviews=d.reviews||[];
     $("#content").innerHTML =
       pageHead('آراء العملاء','إضافة وتعديل وحذف تقييمات وآراء العملاء.', `<button class="btn btn--gold" type="button" id="addReviewBtn">${icon('i-plus')} رأي جديد</button>`) +
-      `<div class="card"><div class="card__body card__body--flush">${reviews.length?`<div class="table-wrap"><table class="data"><thead><tr><th>العميل</th><th>التقييم</th><th>النص</th><th>مفعّل</th><th></th></tr></thead><tbody>
-        ${reviews.map(r=>`<tr><td class="strong">${esc(r.name||'-')}</td><td class="num">${'★'.repeat(Math.max(1,Math.min(5,Number(r.rating)||5)))}${'☆'.repeat(5-Math.max(1,Math.min(5,Number(r.rating)||5)))}</td><td class="muted">${esc(r.text||r.comment||'')}</td><td><label class="switch"><input type="checkbox" data-toggle-review="${esc(r.id)}" ${r.active!==false?'checked':''}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-review="${esc(r.id)}">${icon('i-edit')}</button><button class="icon-btn danger" data-del-review="${esc(r.id)}">${icon('i-trash')}</button></div></td></tr>`).join('')}
+      `<div class="card"><div class="card__body card__body--flush">${reviews.length?`<div class="table-wrap"><table class="data"><thead><tr><th>العميل</th><th>التقييم</th><th>النص</th><th>مفعّل</th><th>ظاهر</th><th></th></tr></thead><tbody>
+        ${reviews.map(r=>`<tr><td class="strong">${esc(r.name||'-')}</td><td class="num">${'★'.repeat(Math.max(1,Math.min(5,Number(r.rating)||5)))}${'☆'.repeat(5-Math.max(1,Math.min(5,Number(r.rating)||5)))}</td><td class="muted">${esc(r.text||r.comment||'')}</td><td><label class="switch"><input type="checkbox" data-toggle-review="${esc(r.id)}" ${r.active!==false?'checked':''}><i></i></label></td><td><label class="switch"><input type="checkbox" data-hide-review="${esc(r.id)}" ${r.hidden===true?'':'checked'}><i></i></label></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-review="${esc(r.id)}">${icon('i-edit')}</button><button class="icon-btn danger" data-del-review="${esc(r.id)}">${icon('i-trash')}</button></div></td></tr>`).join('')}
       </tbody></table></div>`:emptyState('i-star','لا توجد آراء','أضف آراء العملاء لعرضها في الموقع.')}</div></div>`;
     $('#addReviewBtn').onclick=()=>openReviewModal(null);
     $$('[data-edit-review]').forEach(b=>b.addEventListener('click',()=>openReviewModal(b.dataset.editReview)));
     $$('[data-del-review]').forEach(b=>b.addEventListener('click',()=>{ if(!confirm('حذف الرأي؟')) return; const d=db(); d.reviews=d.reviews.filter(x=>x.id!==b.dataset.delReview); commit('تم حذف الرأي'); }));
     $$('[data-toggle-review]').forEach(inp=>inp.addEventListener('change',()=>{ const r=(db().reviews||[]).find(x=>x.id===inp.dataset.toggleReview); if(r){ r.active=inp.checked; commit(); } }));
+    $$('[data-hide-review]').forEach(inp=>inp.addEventListener('change',()=>{ const r=(db().reviews||[]).find(x=>x.id===inp.dataset.hideReview); if(r){ r.hidden=!inp.checked; commit(); } }));
   }
   function openReviewModal(id){
     const d=db(); const r = id ? (d.reviews||[]).find(x=>x.id===id) : {id:uid('r'),name:'',rating:5,text:'',active:true};
@@ -526,11 +853,11 @@
         <label class="field"><span>اسم العميل</span><input id="rvName" value="${esc(r.name||'')}"></label>
         <label class="field"><span>التقييم (1-5)</span><input id="rvRating" type="number" min="1" max="5" step="1" value="${esc(r.rating||5)}"></label>
         <label class="field span-2"><span>نص الرأي</span><textarea id="rvText">${esc(r.text||r.comment||'')}</textarea></label>
-        <div class="full"><label class="checkbox-row"><input type="checkbox" id="rvActive" ${r.active!==false?'checked':''}> مفعّل</label></div>
+        <div class="full option-flags"><label class="checkbox-row"><input type="checkbox" id="rvActive" ${r.active!==false?'checked':''}> مفعّل</label><label class="checkbox-row"><input type="checkbox" id="rvHidden" ${r.hidden===true?'checked':''}> مخفي عن المتجر</label></div>
       </div>
       <div class="modal__actions"><button class="btn btn--gold" id="rvSave">${icon('i-save')} حفظ</button><span class="spacer"></span><button class="btn btn--ghost" data-close>إلغاء</button></div>`);
     $('#rvSave').onclick=()=>{
-      const obj={...r, name:$('#rvName').value.trim()||'عميل', rating:Math.max(1,Math.min(5,Number($('#rvRating').value||5))), text:$('#rvText').value.trim(), active:$('#rvActive').checked};
+      const obj={...r, name:$('#rvName').value.trim()||'عميل', rating:Math.max(1,Math.min(5,Number($('#rvRating').value||5))), text:$('#rvText').value.trim(), active:$('#rvActive').checked, hidden:$('#rvHidden').checked};
       if(!obj.text){ toast('أدخل نص الرأي','error'); return; }
       const arr=db().reviews||(db().reviews=[]); const idx=arr.findIndex(x=>x.id===obj.id); if(idx>=0) arr[idx]=obj; else arr.unshift(obj); commit(isNew?'تمت الإضافة':'تم الحفظ'); closeModal();
     };
@@ -584,44 +911,142 @@
   function renderLoyalty(){
     const s = RT.settings();
     if (!s.loyalty || typeof s.loyalty !== 'object') s.loyalty = { enabled: true, pointsRate: 10, pointValue: 0.1 };
-    const members = (RT.syncLoyaltyMembers ? RT.syncLoyaltyMembers() : (db().loyaltyMembers||[]));
-    const totalPoints = members.reduce((a,m)=>a+(Number(m.points)||0),0);
     $("#content").innerHTML =
-      pageHead('نظام الولاء','إدارة نقاط وولاء العملاء (يُحتسب تلقائيًا من الطلبات ويمكن تعديله يدويًا).', `<button class="btn btn--gold" type="button" id="saveLoyaltyBtn">${icon('i-save')} حفظ إعدادات الولاء</button>`) +
-      `<div class="stats">
-        ${stat('الأعضاء', members.length, 'عميل مسجل بالنقاط', 'i-user', true)}
-        ${stat('إجمالي النقاط', totalPoints, 'نقطة متراكمة', 'i-star')}
-        ${stat('قاعدة الاحتساب', (s.loyalty.pointsRate||10) + ' ' + esc(RT.currency()), 'لكل نقطة واحدة', 'i-chart')}
-        ${stat('قيمة النقطة', (s.loyalty.pointValue||0.1) + ' ' + esc(RT.currency()), 'تقديرية', 'i-money')}
-      </div>
+      pageHead('نظام الولاء','إدارة نقاط وولاء العملاء (تُحتسب تلقائيًا من الطلبات المحلية وطلبات Google Sheets، ويمكن تعديلها يدويًا).', `<button class="btn btn--gold" type="button" id="saveLoyaltyBtn">${icon('i-save')} حفظ إعدادات الولاء</button>`) +
+      `<div class="stats" id="loyaltyStats"></div>
       <div class="card"><div class="card__head"><h2>إعدادات نظام الولاء</h2></div><div class="card__body">
         <div class="form-grid">
           <label class="field"><span>تفعيل النظام</span><select id="lyEnabled"><option value="1" ${s.loyalty.enabled!==false?'selected':''}>مفعّل</option><option value="0" ${s.loyalty.enabled===false?'selected':''}>غير مفعّل</option></select></label>
           <label class="field"><span>كل كم ${esc(RT.currency())} = 1 نقطة</span><input id="lyRate" type="number" step="1" min="1" value="${esc(s.loyalty.pointsRate||10)}"></label>
           <label class="field"><span>قيمة النقطة (${esc(RT.currency())})</span><input id="lyValue" type="number" step="0.01" min="0" value="${esc(s.loyalty.pointValue||0.1)}"></label>
-          <div class="field"><span>ملاحظة</span><div class="note" style="margin:0">${icon('i-alert')}<span>النقاط تُحتسب تلقائيًا من إجمالي الطلبات غير الملغاة (حسب رقم الهاتف). يمكن تعديل نقاط عميل يدويًا من الجدول أدناه عند الحاجة.</span></div></div>
+          <div class="field"><span>ملاحظة</span><div class="note" style="margin:0">${icon('i-alert')}<span>النقاط تُحتسب تلقائيًا من إجمالي الطلبات غير الملغاة (حسب رقم الهاتف) — سواء وصلت من المتجر مباشرة أو من Google Sheets. يمكن تعديل نقاط أي عميل يدويًا من الجدول أدناه.</span></div></div>
         </div>
       </div></div>
-      <div class="card" style="margin-top:18px"><div class="card__head"><h2>أعضاء الولاء</h2><span class="spacer"></span><button class="btn btn--ghost btn--sm" type="button" id="syncLoyaltyBtn">${icon('i-refresh')} إعادة احتساب من الطلبات</button></div>
-        <div class="card__body card__body--flush">${members.length?`<div class="table-wrap"><table class="data"><thead><tr><th>العميل</th><th>الهاتف</th><th>الطلبات</th><th>الإنفاق</th><th>النقاط</th><th>المستوى</th><th></th></tr></thead><tbody>
-          ${members.map(m=>`<tr><td class="strong">${esc(m.name||'عميل')}</td><td dir="ltr" class="num">${esc(m.phone||'—')}</td><td class="num">${esc(m.orders||0)}</td><td class="num">${money(m.spent||0)}</td><td class="num strong">${esc(m.points||0)}</td><td><span class="badge ${m.level==='ذهبي'?'badge--gold':(m.level==='فضي'?'badge--blue':'badge--gray')}">${esc(m.level||RT.loyaltyLevel(m.points||0))}</span></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-ly="${esc(String(m.phone||'').replace(/\D/g,''))}" title="تعديل النقاط">${icon('i-edit')}</button></div></td></tr>`).join('')}
-        </tbody></table></div>`:emptyState('i-star','لا يوجد أعضاء ولاء بعد','ستظهر النقاط تلقائيًا عند وصول طلبات تحتوي على أرقام هواتف.')}</div></div>`;
-    $('#saveLoyaltyBtn').onclick=()=>{ s.loyalty = s.loyalty || {}; s.loyalty.enabled = $('#lyEnabled').value !== '0'; s.loyalty.pointsRate = Math.max(1, Number($('#lyRate').value||10)); s.loyalty.pointValue = Math.max(0, Number($('#lyValue').value||0)); RT.syncLoyaltyMembers && RT.syncLoyaltyMembers(); commit('تم حفظ إعدادات نظام الولاء'); };
-    $('#syncLoyaltyBtn').onclick=()=>{ RT.syncLoyaltyMembers && RT.syncLoyaltyMembers(); commit('تمت إعادة احتساب نقاط الولاء'); };
+      <div class="card" style="margin-top:18px"><div class="card__head"><h2>أعضاء الولاء</h2><span class="spacer"></span><span class="badge badge--gray" id="loyaltySourceBadge">…</span><button class="btn btn--ghost btn--sm" type="button" id="syncLoyaltyBtn">${icon('i-refresh')} إعادة احتساب</button></div>
+        <div class="card__body card__body--flush" id="loyaltyMembersBody"></div></div>
+      <div id="loyaltyExcludedCard"></div>`;
+    $('#saveLoyaltyBtn').onclick=()=>{
+      s.loyalty = s.loyalty || {};
+      s.loyalty.enabled = $('#lyEnabled').value !== '0';
+      s.loyalty.pointsRate = Math.max(1, Number($('#lyRate').value||10));
+      s.loyalty.pointValue = Math.max(0, Number($('#lyValue').value||0));
+      RT.syncLoyaltyMembers && RT.syncLoyaltyMembers();
+      RT.commit();
+      toast('تم حفظ إعدادات نظام الولاء', 'success');
+      saveState(true);
+      renderNav();
+      paintLoyalty();
+    };
+    $('#syncLoyaltyBtn').onclick=()=>{
+      RT.syncLoyaltyMembers && RT.syncLoyaltyMembers();
+      RT.commit();
+      toast('تمت إعادة احتساب نقاط الولاء', 'success');
+      saveState(true);
+      loadLoyaltyRemote();
+      paintLoyalty();
+    };
+    paintLoyalty();
+    loadLoyaltyRemote();
+  }
+
+  function loyaltyMemberList(){
+    if (RT.computeLoyaltyMembers) return RT.computeLoyaltyMembers(state.loyaltyRemoteOrders || []);
+    return (db().loyaltyMembers || []);
+  }
+
+  function loadLoyaltyRemote(){
+    const s = RT.settings();
+    if (!s.sheetsApiUrl || !RT.fetchRemote) { state.loyaltyRemoteLoading = false; return; }
+    state.loyaltyRemoteLoading = true;
+    state.loyaltyRemoteError = false;
+    paintLoyalty();
+    RT.fetchRemote('orders').then(res=>{
+      state.loyaltyRemoteLoading = false;
+      state.loyaltyRemoteError = false;
+      state.loyaltyRemoteOrders = ((res && res.rows) || []);
+      paintLoyalty();
+    }).catch(()=>{
+      state.loyaltyRemoteLoading = false;
+      state.loyaltyRemoteError = true;
+      paintLoyalty();
+    });
+  }
+
+  function paintLoyalty(){
+    if (state.view !== 'loyalty') return;
+    const s = RT.settings();
+    if (!s.loyalty || typeof s.loyalty !== 'object') s.loyalty = { enabled: true, pointsRate: 10, pointValue: 0.1 };
+    const members = loyaltyMemberList();
+    const hidden = (RT.loyaltyHiddenPhones ? RT.loyaltyHiddenPhones() : []).slice().reverse();
+    const totalPoints = members.reduce((a,m)=>a+(Number(m.points)||0),0);
+
+    const statsBox = $('#loyaltyStats');
+    if (statsBox) statsBox.innerHTML =
+      stat('الأعضاء', members.length, 'عميل مسجل بالنقاط', 'i-user', true) +
+      stat('إجمالي النقاط', totalPoints, 'نقطة متراكمة', 'i-star') +
+      stat('قاعدة الاحتساب', (s.loyalty.pointsRate||10) + ' ' + esc(RT.currency()), 'لكل نقطة واحدة', 'i-chart') +
+      stat('قيمة النقطة', (s.loyalty.pointValue||0.1) + ' ' + esc(RT.currency()), 'تقديرية', 'i-money');
+
+    const sourceBadge = $('#loyaltySourceBadge');
+    if (sourceBadge) {
+      const remoteCount = (state.loyaltyRemoteOrders || []).length;
+      if (state.loyaltyRemoteLoading) sourceBadge.textContent = 'جارٍ جلب طلبات Google…';
+      else if (state.loyaltyRemoteError) sourceBadge.textContent = 'تعذر جلب Google Sheets';
+      else if (s.sheetsApiUrl) sourceBadge.textContent = remoteCount + ' طلب من Google Sheets';
+      else sourceBadge.textContent = 'طلبات محلية فقط';
+    }
+
+    const body = $('#loyaltyMembersBody');
+    if (body) {
+      body.innerHTML = members.length
+        ? `<div class="table-wrap"><table class="data"><thead><tr><th>العميل</th><th>الهاتف</th><th>الطلبات</th><th>الإنفاق</th><th>النقاط</th><th>المستوى</th><th></th></tr></thead><tbody>
+          ${members.map(m=>`<tr><td class="strong">${esc(m.name||'عميل')}</td><td dir="ltr" class="num">${esc(m.phone||'—')}</td><td class="num">${esc(m.orders||0)}</td><td class="num">${money(m.spent||0)}</td><td class="num strong">${esc(m.points||0)}${m.manual?' <span class="badge badge--gray">يدوي</span>':''}</td><td><span class="badge ${m.level==='ذهبي'?'badge--gold':(m.level==='فضي'?'badge--blue':'badge--gray')}">${esc(m.level||RT.loyaltyLevel(m.points||0))}</span></td><td class="cell-actions"><div class="row-actions"><button class="icon-btn" data-edit-ly="${esc(String(m.phone||'').replace(/\D/g,''))}" title="تعديل النقاط">${icon('i-edit')}</button><button class="icon-btn danger" data-del-ly="${esc(String(m.phone||'').replace(/\D/g,''))}" title="حذف العميل من نظام الولاء">${icon('i-trash')}</button></div></td></tr>`).join('')}
+        </tbody></table></div>`
+        : emptyState('i-star','لا يوجد أعضاء ولاء بعد','ستظهر النقاط تلقائيًا عند وصول طلبات تحتوي على أرقام هواتف — محلية أو من Google Sheets.');
+    }
+
+    const excluded = $('#loyaltyExcludedCard');
+    if (excluded) excluded.innerHTML = hidden.length
+      ? `<div class="card" style="margin-top:18px"><div class="card__head"><h2>عملاء مستبعدون</h2><span class="spacer"></span><span class="badge badge--gray">${hidden.length}</span></div><div class="card__body card__body--flush">
+        <div class="note" style="margin:14px">${icon('i-alert')}<span>هؤلاء حُذفوا من قائمة الولاء. طلباتهم القديمة لا تُحتسب، ويمكنك استرجاع أي واحد منهم.</span></div>
+        <div class="table-wrap"><table class="data"><thead><tr><th>الهاتف</th><th></th></tr></thead><tbody>
+          ${hidden.map(p=>`<tr><td dir="ltr" class="num">${esc(p)}</td><td class="cell-actions"><button class="btn btn--ghost btn--sm" type="button" data-restore-ly="${esc(p)}">${icon('i-refresh')} استرجاع</button></td></tr>`).join('')}
+        </tbody></table></div>
+      </div></div>`
+      : '';
+
+    bindLoyaltyActions();
+  }
+
+  function bindLoyaltyActions(){
     $$('[data-edit-ly]').forEach(b=>b.addEventListener('click',()=>{
       const phone = b.dataset.editLy;
-      RT.syncLoyaltyMembers && RT.syncLoyaltyMembers();
-      const m = (db().loyaltyMembers||[]).find(x=>String(x.phone||'').replace(/\D/g,'')===phone);
+      const m = loyaltyMemberList().find(x=>String(x.phone||'').replace(/\D/g,'')===phone);
       if(!m) return;
       openModal(`<div class="modal__head"><h2>تعديل نقاط العميل</h2><p>${esc(m.name||'عميل')} — <span dir="ltr">${esc(m.phone||'')}</span></p></div>
         <div class="form-grid">
           <label class="field"><span>النقاط (يدويًا)</span><input id="lyPts" type="number" step="1" value="${esc(m.points||0)}"></label>
-          <div class="field"><span>معلومات</span><div class="note" style="margin:0">${icon('i-alert')}<span>تعيين قيمة هنا يثبّت النقاط يدويًا لهذا العميل (لن تُستبدل باحتساب الطلبات حتى تغيّرها). اتركها كما هي إذا أردت الاحتفاظ بالقيمة الحالية.</span></div></div>
+          <div class="field"><span>معلومات</span><div class="note" style="margin:0">${icon('i-alert')}<span>تعيين قيمة هنا يثبّت النقاط يدويًا لهذا العميل (لن تُستبدل باحتساب الطلبات حتى تغيّرها).</span></div></div>
         </div>
         <div class="modal__actions"><button class="btn btn--gold" id="lySavePts">${icon('i-save')} حفظ</button><button class="btn btn--ghost" id="lyAutoPts">إرجاع للاحتساب التلقائي</button><span class="spacer"></span><button class="btn btn--ghost" data-close>إلغاء</button></div>`, {narrow:true});
-      $('#lySavePts').onclick=()=>{ m.manualPoints = Number($('#lyPts').value||0); m.points = m.manualPoints; m.level = RT.loyaltyLevel(m.points); commit('تم تحديث نقاط العميل'); closeModal(); };
-      $('#lyAutoPts').onclick=()=>{ delete m.manualPoints; RT.syncLoyaltyMembers && RT.syncLoyaltyMembers(); commit('تمت إعادة النقاط للاحتساب التلقائي'); closeModal(); };
+      const finish = (msg) => { closeModal(); toast(msg, 'success'); saveState(true); renderNav(); paintLoyalty(); };
+      $('#lySavePts').onclick=()=>{ RT.setLoyaltyPoints(phone, $('#lyPts').value); finish('تم تحديث نقاط العميل'); };
+      $('#lyAutoPts').onclick=()=>{ RT.setLoyaltyPoints(phone, null); finish('تمت إعادة النقاط للاحتساب التلقائي'); };
       $('[data-close]', $('#modalContent')).onclick=closeModal;
+    }));
+    $$('[data-del-ly]').forEach(b=>b.addEventListener('click',()=>{
+      const phone = b.dataset.delLy;
+      const m = loyaltyMemberList().find(x=>String(x.phone||'').replace(/\D/g,'')===phone);
+      const label = (m && m.name) ? (m.name + ' — ' + phone) : phone;
+      if(!confirm('حذف ' + label + ' من نظام الولاء؟\nلن تُحتسب طلباته السابقة، ويمكنك استرجاعه لاحقًا من قسم «عملاء مستبعدون».')) return;
+      RT.deleteLoyaltyMember ? RT.deleteLoyaltyMember(phone) : null;
+      toast('تم حذف العميل من نظام الولاء', 'success');
+      saveState(true); renderNav(); paintLoyalty();
+    }));
+    $$('[data-restore-ly]').forEach(b=>b.addEventListener('click',()=>{
+      RT.restoreLoyaltyMember ? RT.restoreLoyaltyMember(b.dataset.restoreLy) : null;
+      toast('تم استرجاع العميل إلى نظام الولاء', 'success');
+      saveState(true); renderNav(); paintLoyalty();
     }));
   }
 

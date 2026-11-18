@@ -33,6 +33,7 @@
 
   let toastTimer = null;
   let lastFocused = null;
+  let lastOrderPhone = '';
 
   /* ---------- أدوات ---------- */
   function toast(message, isError) {
@@ -142,8 +143,9 @@
   /* ---------- التصنيفات ---------- */
   function renderCategories() {
     const db = RT.db();
-    const active = db.products.filter(p => p.active);
-    els.cats.innerHTML = db.categories.map(c => {
+    const active = db.products.filter(p => RT.isVisible(p));
+    const cats = db.categories.filter(c => RT.isVisible(c));
+    els.cats.innerHTML = cats.map(c => {
       const count = active.filter(p => p.category === c.id).length;
       const sample = active.find(p => p.category === c.id) || db.products.find(p => p.category === c.id);
       const img = sample ? artFor(sample) : RT.candleArt(c.palette, c.id);
@@ -163,7 +165,7 @@
 
   function renderChips() {
     const db = RT.db();
-    const items = [{ id: 'all', name: 'كل الشموع' }].concat(db.categories);
+    const items = [{ id: 'all', name: 'كل الشموع' }].concat(db.categories.filter(c => RT.isVisible(c)));
     els.chips.innerHTML = items.map(c =>
       `<button class="chip${state.cat === c.id ? ' is-active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`
     ).join('');
@@ -173,7 +175,7 @@
   function filteredProducts() {
     const db = RT.db();
     const favs = RT.favorites();
-    let list = db.products.filter(p => p.active);
+    let list = db.products.filter(p => RT.isVisible(p));
     if (state.cat !== 'all') list = list.filter(p => p.category === state.cat);
     if (state.favOnly) list = list.filter(p => favs.includes(p.id));
 
@@ -222,10 +224,15 @@
           </button>
         </div>
         <div class="product-card__add">
-          <button data-add="${esc(p.id)}" ${out ? 'disabled' : ''}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-            ${out ? 'غير متوفر' : 'أضيفي للسلة'}
-          </button>
+          ${RT.productHasOptions(p)
+            ? `<button data-quick="${esc(p.id)}" ${out ? 'disabled' : ''}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+                ${out ? 'غير متوفر' : 'اختاري الرائحة واللون'}
+              </button>`
+            : `<button data-add="${esc(p.id)}" ${out ? 'disabled' : ''}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+                ${out ? 'غير متوفر' : 'أضيفي للسلة'}
+              </button>`}
         </div>
       </div>
       <div class="product-card__body">
@@ -319,20 +326,23 @@
     if (items.length) {
       els.cartItems.innerHTML = items.map(i => {
         const p = productById(i.productId);
-        const img = p ? artFor(p) : RT.candleArt(i.palette, i.productId);
+        const img = i.image || (p ? artFor(p) : RT.candleArt(i.palette, i.productId));
         const stock = p ? Number(p.stock) || 0 : 99;
-        return `<div class="cart-item">
+        const choice = RT.choicesText(i);
+        const opts = i.options || {};
+        return `<div class="cart-item" data-line="${esc(RT.cartLineKey(i))}">
           <div class="cart-item__img"><img src="${img}" alt="${esc(i.name)}"></div>
           <div>
             <div class="cart-item__name">${esc(i.name)}</div>
+            ${choice ? `<div class="cart-item__choice">${esc(choice)}</div>` : ''}
             <div class="cart-item__price">${money(i.price)}</div>
             <div class="qty">
-              <button data-qty="dec" data-id="${esc(i.productId)}" aria-label="تقليل" ${i.qty <= 1 ? 'disabled' : ''}>−</button>
+              <button data-qty="dec" data-id="${esc(i.productId)}" data-scent="${esc(opts.scent || '')}" data-color="${esc(opts.color || '')}" aria-label="تقليل" ${i.qty <= 1 ? 'disabled' : ''}>−</button>
               <span>${i.qty}</span>
-              <button data-qty="inc" data-id="${esc(i.productId)}" aria-label="زيادة" ${i.qty >= stock ? 'disabled' : ''}>+</button>
+              <button data-qty="inc" data-id="${esc(i.productId)}" data-scent="${esc(opts.scent || '')}" data-color="${esc(opts.color || '')}" aria-label="زيادة" ${i.qty >= stock ? 'disabled' : ''}>+</button>
             </div>
           </div>
-          <button class="cart-item__remove" data-qty="rm" data-id="${esc(i.productId)}">إزالة</button>
+          <button class="cart-item__remove" data-qty="rm" data-id="${esc(i.productId)}" data-scent="${esc(opts.scent || '')}" data-color="${esc(opts.color || '')}">إزالة</button>
         </div>`;
       }).join('');
 
@@ -369,33 +379,56 @@
     if (lastFocused && lastFocused.focus) lastFocused.focus({ preventScroll: true });
   }
 
-  function addToCart(id, qty) {
+  function addToCart(id, qty, choices) {
     const p = productById(id);
     if (!p) return;
     if (isOut(p)) { toast('هذا المنتج غير متوفر حاليًا', true); return; }
+    choices = choices || {};
+    const key = RT.cartLineKey({ productId: id, options: choices });
     const cart = RT.activeCart(false);
-    const line = cart && cart.items.find(i => i.productId === id);
+    const line = cart && cart.items.find(i => RT.cartLineKey(i) === key);
     const current = line ? line.qty : 0;
     if (current + (qty || 1) > (Number(p.stock) || 0)) {
       toast(`الكمية المتاحة ${p.stock} فقط`, true);
       return;
     }
-    RT.addToCart(id, qty || 1);
+    RT.addToCart(id, qty || 1, choices);
     paintCart();
     renderProducts();
     toast('أُضيفت «' + p.name + '» إلى السلة 🌹');
   }
 
   /* ---------- تفاصيل المنتج ---------- */
+  function optionButtons(kind, list) {
+    if (!list || !list.length) return '';
+    return `<div class="product-options__group">
+      <span class="product-options__label">${kind === 'scent' ? 'رائحة الشمع' : 'لون الشمع'}</span>
+      <div class="product-options__chips">
+        ${list.map(o => `<button type="button" class="opt-chip" data-opt-kind="${kind}" data-opt-id="${esc(o.id)}" aria-pressed="false">
+          ${kind === 'color' && o.hex ? `<span class="opt-chip__dot" style="--dot:${esc(o.hex)}"></span>` : ''}
+          <span>${esc(o.label)}</span>
+        </button>`).join('')}
+      </div>
+    </div>`;
+  }
+
   function openProduct(id) {
     const p = productById(id);
     if (!p) return;
     RT.track('product_view', { productId: id, name: p.name });
     const out = isOut(p);
     const sale = p.compareAt && p.compareAt > p.price;
+    const rawImages = RT.productImages(p);
+    const images = (rawImages.length ? rawImages : [artFor(p)]).map(src => /^(https?:|data:image)/.test(src) ? src : artFor(p));
+    const scents = RT.productScentOptions(p);
+    const colors = RT.productColorOptions(p);
+
     $('#productDetail').innerHTML = `
       <div class="product-detail__media">
-        <img src="${artFor(p)}" alt="${esc(p.name)}">
+        <div class="product-gallery">
+          <div class="product-gallery__main"><img id="productMainImage" src="${esc(images[0])}" alt="${esc(p.name)}"></div>
+          ${images.length > 1 ? `<div class="product-gallery__thumbs">${images.map((src, i) => `<button type="button" class="product-gallery__thumb${i === 0 ? ' is-active' : ''}" data-gallery-img="${i}" aria-label="عرض الصورة ${i + 1}"><img src="${esc(src)}" alt=""></button>`).join('')}</div>` : ''}
+        </div>
       </div>
       <div class="product-detail__body">
         <span class="product-detail__cat">${esc(RT.categoryName(p.category))}</span>
@@ -407,6 +440,10 @@
         </div>
         <p class="product-detail__desc">${esc(p.desc)}</p>
         <div class="notes">${(p.notes || []).map(n => `<span class="note-chip">${esc(n)}</span>`).join('')}</div>
+        ${scents.length || colors.length ? `<div class="product-options">
+          ${optionButtons('scent', scents)}
+          ${optionButtons('color', colors)}
+        </div>` : ''}
         <div class="product-detail__meta">
           <div><small>الوزن</small><strong>${esc(p.weight)}</strong></div>
           <div><small>مدة الاحتراق</small><strong>${esc(p.burnTime)}</strong></div>
@@ -414,20 +451,27 @@
           <div><small>التوفر</small><strong>${out ? 'غير متوفر' : p.stock + ' قطعة'}</strong></div>
         </div>
         <span class="product-detail__stock ${out ? 'is-out' : ''}">${out ? 'سنعلمك عند توفره مجددًا' : 'شمع صويا ١٠٠٪ · فتيل قطني · تغليف هدايا'}</span>
-        <div class="product-detail__buy">
-          <div class="qty">
-            <button data-pqty="dec" aria-label="تقليل">−</button>
-            <span id="modalQty">1</span>
-            <button data-pqty="inc" aria-label="زيادة">+</button>
-          </div>
+      </div>`;
+
+    $('#productBuy').innerHTML = `
+      <div class="product-detail__buy-inner">
+        <div class="qty">
+          <button type="button" data-pqty="dec" aria-label="تقليل">−</button>
+          <span id="modalQty">1</span>
+          <button type="button" data-pqty="inc" aria-label="زيادة">+</button>
+        </div>
+        <div class="product-detail__buy-action">
           <button class="btn btn--primary" data-modal-add="${esc(p.id)}" ${out ? 'disabled' : ''}>
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 8h12l-1.2 11a2 2 0 0 1-2 1.8H9.2a2 2 0 0 1-2-1.8L6 8Z" stroke-linejoin="round"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>
             ${out ? 'غير متوفر' : 'أضيفي للسلة'}
           </button>
+          <small class="product-detail__choice" id="modalChoiceSummary"></small>
         </div>
       </div>`;
     window.__modalQty = 1;
     window.__modalMax = Number(p.stock) || 0;
+    window.__modalChoices = { scent: '', color: '' };
+    window.__modalImages = images;
     openModal('#productModal');
   }
 
@@ -569,7 +613,7 @@
       $('#searchResults').innerHTML = '<p class="search-hint">جرّبي: ورد، عنبر، فانيلا، هدايا…</p>';
       return;
     }
-    const results = RT.db().products.filter(p => p.active && [p.name, p.en, p.scent, p.desc, RT.categoryName(p.category)].join(' ').toLowerCase().includes(q)).slice(0, 8);
+    const results = RT.db().products.filter(p => RT.isVisible(p) && [p.name, p.en, p.scent, p.desc, RT.categoryName(p.category)].join(' ').toLowerCase().includes(q)).slice(0, 8);
     $('#searchResults').innerHTML = results.length
       ? results.map(p => `<a class="search-result" href="#" data-quick="${esc(p.id)}">
           <img src="${artFor(p)}" alt="">
@@ -687,7 +731,14 @@
       if (add) { e.preventDefault(); addToCart(add.getAttribute('data-add'), 1); return; }
 
       const addOffer = e.target.closest('[data-add-product]');
-      if (addOffer) { e.preventDefault(); addToCart(addOffer.getAttribute('data-add-product'), 1); return; }
+      if (addOffer) {
+        e.preventDefault();
+        const offerId = addOffer.getAttribute('data-add-product');
+        const offerProduct = productById(offerId);
+        if (offerProduct && RT.productHasOptions(offerProduct)) openProduct(offerId);
+        else addToCart(offerId, 1);
+        return;
+      }
 
       const fav = e.target.closest('[data-fav]');
       if (fav) {
@@ -712,17 +763,44 @@
         return;
       }
 
+      const thumb = e.target.closest('[data-gallery-img]');
+      if (thumb) {
+        e.preventDefault();
+        const src = (window.__modalImages || [])[Number(thumb.dataset.galleryImg)];
+        if (src) $('#productMainImage').src = src;
+        $$('.product-gallery__thumb', $('#productModal')).forEach(b => b.classList.toggle('is-active', b === thumb));
+        return;
+      }
+
+      const opt = e.target.closest('[data-opt-kind]');
+      if (opt) {
+        e.preventDefault();
+        const kind = opt.dataset.optKind;
+        window.__modalChoices = window.__modalChoices || { scent: '', color: '' };
+        window.__modalChoices[kind] = opt.dataset.optId;
+        $$('.opt-chip[data-opt-kind="' + kind + '"]', $('#productModal')).forEach(b => {
+          const active = b === opt;
+          b.classList.toggle('is-active', active);
+          b.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        const summary = $('#modalChoiceSummary');
+        if (summary) summary.textContent = RT.choicesText({ options: window.__modalChoices });
+        return;
+      }
+
       const qty = e.target.closest('[data-qty]');
       if (qty) {
         e.preventDefault();
         const id = qty.getAttribute('data-id');
         const act = qty.getAttribute('data-qty');
+        const choices = { scent: qty.getAttribute('data-scent') || '', color: qty.getAttribute('data-color') || '' };
+        const key = RT.cartLineKey({ productId: id, options: choices });
         const cart = RT.activeCart(false);
-        const line = cart && cart.items.find(i => i.productId === id);
+        const line = cart && cart.items.find(i => RT.cartLineKey(i) === key);
         if (!line) return;
-        if (act === 'rm') { RT.removeFromCart(id); toast('أُزيل المنتج من السلة'); }
-        if (act === 'inc') RT.setCartQty(id, line.qty + 1);
-        if (act === 'dec') RT.setCartQty(id, line.qty - 1);
+        if (act === 'rm') { RT.removeFromCart(id, choices); toast('أُزيل المنتج من السلة'); }
+        if (act === 'inc') RT.setCartQty(id, line.qty + 1, choices);
+        if (act === 'dec') RT.setCartQty(id, line.qty - 1, choices);
         paintCart(); renderProducts();
         return;
       }
@@ -740,7 +818,14 @@
       const modalAdd = e.target.closest('[data-modal-add]');
       if (modalAdd) {
         e.preventDefault();
-        addToCart(modalAdd.getAttribute('data-modal-add'), window.__modalQty || 1);
+        const id = modalAdd.getAttribute('data-modal-add');
+        const product = productById(id);
+        const choices = window.__modalChoices || { scent: '', color: '' };
+        if (product && RT.productHasOptions(product)) {
+          if (RT.productScentOptions(product).length && !choices.scent) { toast('اختاري رائحة الشمع أولًا', true); return; }
+          if (RT.productColorOptions(product).length && !choices.color) { toast('اختاري لون الشمع أولًا', true); return; }
+        }
+        addToCart(id, window.__modalQty || 1, choices);
         closeModal($('#productModal'));
         openCart();
         return;
@@ -809,6 +894,7 @@
       try {
         const paymentRadio = form.querySelector('input[name="payment"]:checked');
         const order = RT.placeOrder(customer, paymentRadio ? paymentRadio.value : 'الدفع عند الاستلام');
+        lastOrderPhone = customer.phone;
         const waUrl = (RT.whatsappUrl && RT.orderText) ? RT.whatsappUrl(RT.orderText(order)) : '';
         if (RT.pushRemote) { try { RT.pushRemote('order', RT.orderRemotePayload ? RT.orderRemotePayload(order) : {}); } catch (e3) { /* ignore */ } }
         try { localStorage.setItem('rosetouch_checkout', JSON.stringify({ name: customer.name, phone: customer.phone, city: customer.city, address: customer.address, deliveryArea: deliveryArea })); } catch (e2) { /* ignore */ }
@@ -912,6 +998,156 @@
     window.addEventListener('storage', (e) => {
       if (e.key === 'rosetouch_favorites') { paintFavorites(); renderProducts(); }
     });
+  }
+
+  /* ---------- تتبّع الطلب ---------- */
+  const TRACK_ORDER = ['new', 'processing', 'shipped', 'completed'];
+  const TRACK_LABELS = { new: 'جديد', processing: 'قيد التجهيز', shipped: 'تم الشحن', completed: 'مكتمل', cancelled: 'ملغي' };
+  const TRACK_TONES = { new: 'gold', processing: 'warn', shipped: 'blue', completed: 'green', cancelled: 'red' };
+
+  function normDigits(v) { return String(v == null ? '' : v).replace(/\D/g, ''); }
+
+  function phonesMatch(a, b) {
+    const x = normDigits(a), y = normDigits(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    if (x.length < 8 || y.length < 8) return false;
+    return x.slice(-9) === y.slice(-9);
+  }
+
+  function numbersMatch(a, b) {
+    const x = String(a == null ? '' : a).toUpperCase().replace(/\s+/g, '');
+    const y = String(b == null ? '' : b).toUpperCase().replace(/\s+/g, '');
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const dx = normDigits(x), dy = normDigits(y);
+    return !!dx && dx === dy;
+  }
+
+  function trackStatusKey(raw) {
+    const v = String(raw == null ? '' : raw).trim();
+    if (v === 'قيد التجهيز' || v === 'processing' || v === 'read') return 'processing';
+    if (v === 'تم الشحن' || v === 'shipped') return 'shipped';
+    if (v === 'مكتمل' || v === 'completed') return 'completed';
+    if (v === 'ملغي' || v === 'ملغى' || v === 'cancelled') return 'cancelled';
+    return 'new';
+  }
+
+  function trackItemsHtml(order) {
+    if (Array.isArray(order.items) && order.items.length) {
+      return order.items.map((it) => {
+        const name = it.name || 'منتج';
+        const qty = Number(it.qty) || 1;
+        const price = Number(it.price) || 0;
+        return `<li><span>${esc(name)} <b>× ${esc(qty)}</b></span><em>${esc(RT.money(price * qty))}</em></li>`;
+      }).join('');
+    }
+    const text = String(order.itemsText || '').trim();
+    if (!text) return '';
+    return text.split(/\s*\|\s*/).filter(Boolean).map((line) => {
+      const parts = line.split(/\s*[×x]\s*/i);
+      const name = parts[0] || line;
+      const qty = parts[1] ? parts[1] : '';
+      return `<li><span>${esc(name)}${qty ? ` <b>× ${esc(qty)}</b>` : ''}</span></li>`;
+    }).join('');
+  }
+
+  function paintTrackOrder(order) {
+    const box = $('#trackResult');
+    if (!box) return;
+    const st = trackStatusKey(order.status);
+    const cancelled = st === 'cancelled';
+    const idx = Math.max(0, TRACK_ORDER.indexOf(st));
+    const area = order.area || (order.customer && (order.customer.deliveryArea || order.customer.city)) || '';
+    const total = Number(order.total) || 0;
+    const waHref = (RT.whatsappUrl ? RT.whatsappUrl('استفسار بخصوص الطلب ' + (order.number || '')) : '');
+    const items = trackItemsHtml(order);
+    const steps = cancelled ? '' : `<ol class="track-timeline">${TRACK_ORDER.map((s, i) => `
+      <li class="${i < idx ? 'is-done' : ''}${i === idx ? ' is-current' : ''}">
+        <i>${i + 1}</i><span>${TRACK_LABELS[s]}</span>
+      </li>`).join('')}</ol>`;
+    box.innerHTML = `<div class="track-card${cancelled ? ' is-cancelled' : ''}">
+      <div class="track-card__head">
+        <div class="track-card__id">
+          <span>رقم الطلب</span>
+          <b dir="ltr">${esc(order.number || '—')}</b>
+        </div>
+        <span class="badge badge--${TRACK_TONES[st] || 'gray'}">${esc(TRACK_LABELS[st] || 'جديد')}</span>
+      </div>
+      ${steps}
+      ${cancelled ? `<div class="track-cancel">${esc('تم إلغاء هذا الطلب. للاستفسار أو إعادة الطلب تواصلي معنا عبر واتساب.')}</div>` : ''}
+      <div class="track-card__meta">
+        <div><small>التاريخ</small><b>${esc(order.createdAt ? RT.fmtDate(order.createdAt) : '—')}</b></div>
+        <div><small>المنطقة</small><b>${esc(area || '—')}</b></div>
+        <div><small>الدفع</small><b>${esc(order.payment || 'الدفع عند الاستلام')}</b></div>
+      </div>
+      ${items ? `<ul class="track-items">${items}</ul>` : ''}
+      <div class="track-total"><span>الإجمالي</span><b>${esc(RT.money(total))}</b></div>
+      ${waHref ? `<a class="btn btn--ghost btn--full" href="${esc(waHref)}" target="_blank" rel="noopener">استفسار عبر واتساب</a>` : ''}
+    </div>`;
+  }
+
+  function paintTrackError(message) {
+    const box = $('#trackResult');
+    if (!box) return;
+    box.innerHTML = `<div class="track-empty">${esc(message)}</div>`;
+  }
+
+  function lookupTrackOrder(number, phone) {
+    const box = $('#trackResult');
+    const btn = $('#trackBtn');
+    if (!box) return;
+    const num = String(number || '').trim();
+    const ph = String(phone || '').trim();
+    if (!num || !ph) { paintTrackError('أدخلي رقم الطلب ورقم الهاتف أولًا.'); return; }
+
+    const local = (RT.db().orders || []).find((o) =>
+      numbersMatch(o.number, num) && phonesMatch(o.customer && o.customer.phone, ph)
+    );
+    const localFallback = () => {
+      if (local) { paintTrackOrder(local); return true; }
+      return false;
+    };
+
+    if (!RT.sheetsApiUrl || !RT.sheetsApiUrl()) {
+      if (!localFallback()) paintTrackError('لم نجد طلبًا مطابقًا. تأكدي من رقم الطلب ورقم الهاتف.');
+      return;
+    }
+
+    box.innerHTML = `<div class="track-loading"><span class="spinner" aria-hidden="true"></span> جارٍ البحث عن طلبك…</div>`;
+    if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = 'جارٍ البحث…'; }
+    RT.fetchRemote('orders').then((res) => {
+      const rows = (res && res.rows) || [];
+      const row = rows.find((r) => numbersMatch(r.number, num) && phonesMatch(r.phone, ph));
+      if (row) paintTrackOrder(row);
+      else if (!localFallback()) paintTrackError('لم نجد طلبًا مطابقًا. تأكدي من رقم الطلب ورقم الهاتف — أو تواصلي معنا عبر واتساب.');
+    }).catch(() => {
+      if (!localFallback()) paintTrackError('تعذّر الاتصال بالخادم حاليًا. تأكدي من الإنترنت وحاولي مرة أخرى، أو تواصلي معنا عبر واتساب.');
+    }).then(() => {
+      if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || 'عرض حالة الطلب'; }
+    });
+  }
+
+  function initTracking() {
+    const form = $('#trackForm');
+    if (!form) return;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      lookupTrackOrder(form.elements.number.value, form.elements.phone.value);
+    });
+    const trackBtn = $('#successTrack');
+    if (trackBtn) {
+      trackBtn.addEventListener('click', () => {
+        const num = ($('#successOrderNumber') && $('#successOrderNumber').textContent || '').trim();
+        const phone = lastOrderPhone || (($('#checkoutForm') && $('#checkoutForm').elements.phone.value) || '').trim();
+        closeModal($('#successModal'));
+        const section = $('#track');
+        if (section && section.scrollIntoView) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (form.elements.number) form.elements.number.value = num;
+        if (form.elements.phone) form.elements.phone.value = phone;
+        setTimeout(() => lookupTrackOrder(num, phone), 420);
+      });
+    }
   }
 
   /* ---------- توزيعات الشموع ---------- */
@@ -1081,6 +1317,7 @@
     renderChips();
     renderProducts();
     initFavorForm();
+    initTracking();
     paintCart();
     paintFavorites();
     startCountdown();
